@@ -19,11 +19,14 @@ for i in range(NUM_PROSUMERS):
     
     prosumer = Prosumer(i, pv_capacity, load_profile, battery_capacity , neighbourhood)
     prosumers.append(prosumer) # add to prosumers list
-    neighbourhoods[neighbourhood].append(i)  # add prosumer to its neighbourhood
+    neighbourhoods[neighbourhood].append(prosumer)  # add prosumer to its neighbourhood
+    # neighbourhoods[neighbourhood].append(i)
 
-balancing = BalancingProcess(prosumers, neighbourhoods)
+balancing = BalancingProcess(neighbourhoods) #take just the neighbourhoods dictionary that already contains the Prosumers
 
 for hour in range(HOURS):
     print(f"\n=== Hour {hour} ===")
     
     balancing.step1_self_balancing(hour)
+
+    balancing.step2_local_market(current_market_price = 0.2)
