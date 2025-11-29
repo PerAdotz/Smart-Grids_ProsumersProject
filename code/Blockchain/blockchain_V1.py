@@ -3,6 +3,10 @@ import json
 import time
 import random
 
+#MANTIENI la classe TRANSACTION , BLOCK , BLOCKCHAIN cosi come sono se riesci
+# in Blockchain ti ho inserito la classe winner_selection(), scegli li chi vince tra tutti
+
+
 # --- 1. CLASSE TRANSAZIONE --- 
 class Transaction:
     def __init__(self, sender, receiver, amount, price, step):
@@ -14,7 +18,6 @@ class Transaction:
         self.timestamp = time.time()
 
     def to_dict(self):
-        """Converte l'oggetto in dizionario per la serializzazione JSON"""
         return {
             "sender": self.sender,
             "receiver": self.receiver,
@@ -111,6 +114,11 @@ class Blockchain:
             if current.hash[:self.difficulty] != "0" * self.difficulty:
                 return False
         return True
+    
+    def winner_selection(self, competitors):
+        """Dato un elenco di (miner_id, hash_power), restituisce il vincitore."""
+        winner_name , winner_power = max(competitors, key=lambda x: x[1])
+        return winner_name , winner_power
 
 # --- 4. CLASSE MINER ---
 class Miner:
@@ -123,6 +131,8 @@ class Miner:
     def Pow_compete(self):
         """Restituisce la potenza di calcolo simulata"""
         return self.hash_power
+    
+
 
 # # --- 5. CONFIGURAZIONE SIMULAZIONE ---
 # def run_simulation():

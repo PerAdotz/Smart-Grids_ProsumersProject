@@ -11,7 +11,7 @@ Therefore, in your prosumer community simulators, you should have:
 
 Set up the prosumer community that has around 100 prosumers, each of whom would try to balance their energy needs through the 3 steps: 
 1. self-balancing, 2. self-organized negotiation, 3. local market through load aggregator.
-At each time step, the prosumer needs to make decisions on: 
+At each time step, the prosumer needs to make decisions on:
 1. how much energy imbalance (after self-balance) he/she wants to trade at which price with whom (in the self-organized trading), 
 2. if he/she cannot balance the imbalance, he/she needs to go to the local market with which quantity and what price.
 The regulator needs to design a strategy to make the community run by pursuing some objectives, such as maximizing the entire community's profits, 

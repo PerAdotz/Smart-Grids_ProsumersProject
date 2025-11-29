@@ -16,8 +16,6 @@ def run_simulation():
     #list of all prosumers
     prosumers = []
     neighbourhoods = {i: [] for i in range(NUM_NEIGHBOURHOODS)}  # dictionnary to hold prosumers by neighbourhood
-    energy_chain = Blockchain(difficulty=DIFFICULTY)
-    miners_names = [f"Miner_Node_{i}" for i in range(1, NUM_MINERS + 1)]
 
     for i in range(NUM_PROSUMERS):
         pv_capacity = np.random.uniform(3, 7)  # 3-7 kW PV systems
@@ -31,11 +29,13 @@ def run_simulation():
         # neighbourhoods[neighbourhood].append(i)
 
     balancing = BalancingProcess(neighbourhoods) #take just the neighbourhoods dictionary that already contains the Prosumers
+    energy_chain = Blockchain(difficulty=DIFFICULTY)
+    miners_names = [f"Miner_Node_{i}" for i in range(1, NUM_MINERS + 1)]
 
-    data = []
+    stats_list = []
 
     for hour in range(HOURS):
-        print(f"\n=== Hour {hour} ===")
+        print(f"\n--- Hour {hour} ---")
 
 
         #--- BALANCING
@@ -57,17 +57,14 @@ def run_simulation():
 
         current_round_competitors = []
         for miner_name in miners_names:
-            # Istanziamo il miner
             m = Miner(miner_name)
-            # Calcoliamo la sua potenza attuale
             power = m.Pow_compete()
-            # Salviamo il risultato
             current_round_competitors.append((miner_name, power))
         
         # Troviamo chi ha il valore 'hash_power' più alto (simulazione di chi trova prima il blocco)
-        winner_name, winner_power = max(current_round_competitors, key=lambda x: x[1])
+        winner_name, winner_power = energy_chain.winner_selection(current_round_competitors)
         
-        print(f"  Miner vincente: {winner_name} (Hash Power: {winner_power:.4f})")
+        print(f"  Winner Miner: {winner_name} (Hash Power: {winner_power:.4f})")
         
         # Il vincitore mina il blocco reale
         energy_chain.mine_pending_transactions(winner_name)
@@ -78,7 +75,7 @@ def run_simulation():
         # put stats of each prosumer in a pandas df 
         for prosumer in prosumers:
             stats = prosumer.get_stats(hour)
-            data.append({
+            stats_list.append({
                 "hour": hour,
                 "id": stats["id"],
                 "pv_capacity": stats["pv_capacity"],
@@ -92,11 +89,11 @@ def run_simulation():
             })
             
 
-    output_stats = pd.DataFrame(data)
+    output_stats = pd.DataFrame(stats_list)
     output_stats.to_csv("code/prosumer_stats.csv", index=False)
-    print(f"Lunghezza Catena: {len(energy_chain.chain)} blocchi")
+    print(f"Chain Length: {len(energy_chain.chain)} blocks")
     is_valid = energy_chain.is_chain_valid()
-    print(f"Integrità Blockchain: {'VALIDA' if is_valid else 'CORROTTA'}")
+    print(f"Blockchain Integrity: {'VALID' if is_valid else 'CORRUPTED'}")
     print("\nSimulation complete. Prosumer stats saved to 'prosumer_stats.csv'.")
 
 if __name__ == "__main__":
