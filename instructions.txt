@@ -1,0 +1,34 @@
+About the course project of the prosumer community:
+
+Up to today, we have finished the blocks that are needed for your project for the prosumer community, which are:
+
+PV generation (used to forecast the generation of over-the-roof pv of prosumers in your community).
+Price Forecast (needed for prosumer to decide to buy/sell with self-organized trading or the local market, also can be used to help prosumers to determine at which price he/she would sell or buy the electricity in the self-organized negotiation)
+The prosumer community (the general setup of the community, how the community works as an example: a self-sustainable community that balances the energy at the lowest level, different strategies of regulators to nudge the behavior of the prosumers along the system benefits)
+Blockchain to support self-organized trading (how each blocks are mined/minted, different consensus mechanisms)
+
+Therefore, in your prosumer community simulators, you should have:
+
+Set up the prosumer community that has around 100 prosumers, each of whom would try to balance their energy needs through the 3 steps: 1. self-balancing, 2. self-organized negotiation, 3. local market through load aggregator.
+ At each time step, the prosumer needs to make decisions on: 1. how much energy imbalance (after self-balance) he/she wants to trade at which price with whom (in the self-organized trading), 2. if he/she cannot balance the imbalance, he/she needs to go to the local market with which quantity and what price.
+The regulator needs to design a strategy to make the community run by pursuing some objectives, such as maximizing the entire community's profits, maximizing the usage of renewable energy, maximizing self-organized trading, creating maximum chaos etc. (not all of them, choose the most important objective you like, also you can see you can choose whatever objective you like, not necessarily a good one). Then you need to design strategies to push prosumers to achieve the objective you set through "regulations/rules" such as rewarding them, punishing them by not allowing them to trade for the next step if they do something wrong, kicking them out of the community, etc. (again, it does not matter how extreme your "rules" would be, as long as it works)
+For each agreed transaction (bilateral trading or local markets), they must be put on the blockchain (thus, if you choose proof-of-work, the difficulty targets would be 3 0s as the start of the hash value of the block, e.g. 0003abef2840a.....; you can also choose proof-of-stake). The number of miners or validators in your system should be no less than 10.
+The simulation needs to be run for at least 24 steps (e.g., if you imagine each trading is for one hour, then it means your simulator would simulate 24 hours; if you think each trading is for next 5 minutes, then your simulator would run for 2 2-hour time span. This would change the time scale for PV generation, price forecast, etc.).
+Project submission:
+
+The project will be presented at the last lecture (after the Christmas break, I will try to arrange it in the week after the 7th Jan.), including less than 10 slides:
+
+ Introducing the layout of your community (what are the players, what each player would do, what are the assumptions, what are the objectives, what are the control strategies)
+Mathematical models for each player
+Simulation results
+Discussion
+Conclusion
+The slides and the source code should be submitted in a zip file by one of your group members to the course "elaborati" no later than 10th of Jan 2026.
+
+There is no requirement on the development language; there is no requirement on the graphic interface. But, there should be a clear instruction to set up the environment to run the code, and a short instruction on how to run the code should also be in the submission zip file. 
+
+A real run demonstration of the simulator is required in the final presentation.
+
+Some hints:
+
+It is not required to make a very complicated simulator; an equivalent mathematical operation is fine, e.g. you want to minimize the cost of a prosumer in the bilateral trading, it does not really need an optimization, simple sorting of price from the cheapest to the most expensive one can do the job (take from the cheapest then the second cheaptest, etc.. untill satisfies your energy needs).  The local market trade can also be in this way, instead of maximizing the social surplus, ranking buyer prices and seller prices can do the job. All the simulation components are within a computer, i.e., no real communication through protocols such as tcp/ip, udp, etc is required.
