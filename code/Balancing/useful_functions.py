@@ -20,13 +20,13 @@ def generate_load_profile():
     load = [l * np.random.uniform(0.9, 1.1) for l in load]
     return load  #output is a list of 24 hours load , to access is we can use load[hour] no need for a dictionary 
 
-plt.figure()
-hours = range(24)
-sample_load = generate_load_profile()
-plt.plot(hours, sample_load, label='Sample Load Profile')
-plt.xlabel('Hour of Day')
-plt.ylabel('Load (kWh)')
-plt.title('Sample Daily Load Profile and PV Generation')
-plt.legend()
-plt.grid()
-plt.show()
+# plt.figure()
+# hours = range(24)
+# sample_load = generate_load_profile()
+# plt.plot(hours, sample_load, label='Sample Load Profile')
+# plt.xlabel('Hour of Day')
+# plt.ylabel('Load (kWh)')
+# plt.title('Sample Daily Load Profile and PV Generation')
+# plt.legend()
+# plt.grid()
+# plt.show()

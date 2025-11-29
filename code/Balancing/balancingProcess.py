@@ -5,13 +5,17 @@ class BalancingProcess:
         neighbourhoods: dictionary of neighbourhood_id: list of Prosumers
         """
         self.neighbourhoods = neighbourhoods
+        self.hour = 0
         
-    def step1_self_balancing(self, hour):
+    def set_hour(self, hour):
+        self.hour = hour 
+
+    def step1_self_balancing(self):
         for neighbourhood , prosumers_in_neighbourhood in self.neighbourhoods.items():
             for prosumer in prosumers_in_neighbourhood:
-                prosumer.self_balance(hour)
+                prosumer.self_balance(self.hour)
 
-    def step2_local_market(self , current_market_price = 0.2):
+    def step2_local_market(self):
         for neighbourhood , prosumers_in_neighbourhood in self.neighbourhoods.items():
             local_prosumers = prosumers_in_neighbourhood
             # Separate buyers and sellers
@@ -51,27 +55,89 @@ class BalancingProcess:
                     seller.imbalance += amount # Reduces surplus (moves towards 0)
                     seller.money_balance += amount * trade_price
                     
-                    # Record Transaction
+                    # Record Transaction , here we need the Blockchain part
                     transaction = {
                         "sender": seller.id,
                         "receiver": buyer.id,
                         "amount": amount,
                         "price_per_kWh": trade_price,
-                        "type": "P2P"
+                        "type": "P2P",
+                        "hour": self.hour
                     }
-                    buyer.transactions.append(transaction)
-                    seller.transactions.append(transaction)
+                        
+                    buyer.transactions[self.hour].append(transaction)
+                    seller.transactions[self.hour].append(transaction)
                     
                     # Move to next if fully satisfied/depleted
-                    if abs(buyer.imbalance) < 0.001:
+                    if abs(buyer.imbalance) == 0:
                         b_idx += 1
-                    if abs(seller.imbalance) < 0.001:
+                    if abs(seller.imbalance) == 0:
                         s_idx += 1
                         
                 else:
                     # If best buyer won't pay best seller's price, no more trades possible
                     break
 
-    def step3_grid_interaction(self):
-        # Placeholder for grid interaction balancing logic
-        pass
+    def step3_grid_interaction(self, current_market_price, margin=0.05):
+        """
+        Step 3: Local Market / Grid Interaction (Aggregator)
+        Any remaining imbalance is cleared with the aggregator.
+        
+        current_market_price: The D-1 price for this hour.
+        margin: The percentage fee/penalty for using the grid (default 5%).
+        """
+        # Iterate through all prosumers in all neighbourhoods
+        for neighbourhood_id, prosumers_in_neighbourhood in self.neighbourhoods.items():
+            for p in prosumers_in_neighbourhood:
+                
+                # Skip if already balanced (allowing for small floating point error)
+                if abs(p.imbalance) == 0:
+                    continue
+
+                transaction = None
+                
+                # --- CASE 1: Prosumer still needs energy (Deficit / Buyer) ---
+                if p.imbalance > 0:
+                    amount_needed = p.imbalance
+                    
+                    # Buying from grid is expensive: Price * (1 + margin)
+                    grid_price = current_market_price * (1 + margin)
+                    cost = amount_needed * grid_price
+                    
+                    # Execute
+                    p.money_balance -= cost
+                    p.imbalance = 0  # Imbalance is resolved
+                    
+                    transaction = {
+                        "sender": "Aggregator",
+                        "receiver": p.id,
+                        "amount": amount_needed,
+                        "price_per_kWh": grid_price,
+                        "type": "GRID_buy",
+                        "hour": self.hour
+                    }
+
+                # --- CASE 2: Prosumer has extra energy (Surplus / Seller) ---
+                elif p.imbalance < 0:
+                    amount_sold = abs(p.imbalance)
+                    
+                    # Selling to grid pays less: Price * (1 - margin)
+                    grid_price = current_market_price * (1 - margin)
+                    earnings = amount_sold * grid_price
+                    
+                    # Execute
+                    p.money_balance += earnings
+                    p.imbalance = 0  # Imbalance is resolved
+                    
+                    transaction = {
+                        "sender": p.id,
+                        "receiver": "Aggregator",
+                        "amount": amount_sold,
+                        "price_per_kWh": grid_price,
+                        "type": "GRID_sell",
+                        "hour": self.hour
+                    }
+
+                # Record transaction
+                if transaction:
+                    p.transactions[self.hour].append(transaction)

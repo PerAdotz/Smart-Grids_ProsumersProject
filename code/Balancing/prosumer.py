@@ -16,7 +16,7 @@ class Prosumer:
         self.battery_level = 0  # current battery level in kWh
         self.imbalance = 0  # current energy imbalance in kWh for the hour
         self.money_balance = 0    # money balance (earnings - costs)
-        self.transactions = []  # history of trades
+        self.transactions = {hour: [] for hour in range(24)}  # record of transactions per hour
         self.trading_price = 0 # price per kWh for trading in local market for the current hour
 
     
@@ -39,14 +39,17 @@ class Prosumer:
     
 
     
-    def get_stats(self):
+    def get_stats(self , hour):
         stats = {
             "id": self.id,
             "pv_capacity": self.pv_capacity,
             "battery_capacity": self.battery_capacity,
             "battery_level": self.battery_level,
             "imbalance": self.imbalance,
-            "money_balance": self.money_balance
+            "money_balance": self.money_balance,
+            "trading_price": self.trading_price,
+            "neighbourhood": self.neighbourhood,
+            "transactions": self.transactions[hour]
         }
         return stats
     
@@ -75,7 +78,7 @@ class Prosumer:
 
 
     # NEW METHOD: Prosumer decides their price based on the market reference
-    def calculate_trading_price(self, market_price):
+    def calculate_trading_price(self, current_market_price):
         """
         Sets the trading price based on D-1 market price.
         Sellers want to undercut the market slightly to sell.
@@ -84,10 +87,10 @@ class Prosumer:
         # Add some randomness to simulate different bidding strategies
         if self.imbalance < 0:  # Seller
             # Seller Strategy: Offer between 80% and 100% of market price
-            self.trading_price = market_price * np.random.uniform(0.8, 1.0)
+            self.trading_price = current_market_price * np.random.uniform(0.8, 1.0)
             
         elif self.imbalance > 0:  # Buyer
             # Buyer Strategy: Willing to pay 90% to 110% of market price
-            self.trading_price = market_price * np.random.uniform(0.9, 1.1)
+            self.trading_price = current_market_price * np.random.uniform(0.9, 1.1)
         else:
             self.trading_price = 0
