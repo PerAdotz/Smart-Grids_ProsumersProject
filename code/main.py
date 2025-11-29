@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from Balancing.useful_functions import generate_load_profile
 from Blockchain.blockchain_V1 import Blockchain , Miner
+from Balancing.regulator import Regulator
 
 NUM_PROSUMERS = 100
 NUM_NEIGHBOURHOODS = 5
@@ -29,6 +30,7 @@ def run_simulation():
         # neighbourhoods[neighbourhood].append(i)
 
     balancing = BalancingProcess(neighbourhoods) #take just the neighbourhoods dictionary that already contains the Prosumers
+    regulator = Regulator(objective="Maximize_P2P")
     energy_chain = Blockchain(difficulty=DIFFICULTY)
     miners_names = [f"Miner_Node_{i}" for i in range(1, NUM_MINERS + 1)]
 
@@ -41,10 +43,10 @@ def run_simulation():
         #--- BALANCING
 
         balancing.set_hour(hour)
-        
-        balancing.step1_self_balancing()
 
         current_market_price = 0.2  # assuming a fixed market price for simplicity, but then will be the output of Price Forecasting module
+        
+        balancing.step1_self_balancing()
 
         for prosumer in prosumers:
             prosumer.calculate_trading_price(current_market_price = current_market_price)
@@ -52,6 +54,10 @@ def run_simulation():
         balancing.step2_local_market(energy_chain)
 
         balancing.step3_grid_interaction(current_market_price = current_market_price , energy_chain=energy_chain)
+
+        #--- REGULATOR
+
+        regulator.apply_regulations(prosumers, hour)
 
         #--- BLOCKCHAIN
 
