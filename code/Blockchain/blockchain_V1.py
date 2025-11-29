@@ -124,78 +124,78 @@ class Miner:
         """Restituisce la potenza di calcolo simulata"""
         return self.hash_power
 
-# --- 5. CONFIGURAZIONE SIMULAZIONE ---
-def run_simulation():
-    DIFFICULTY = 3
-    NUM_PROSUMERS = 100
-    NUM_MINERS = 10 
-    SIMULATION_STEPS = 24
+# # --- 5. CONFIGURAZIONE SIMULAZIONE ---
+# def run_simulation():
+#     DIFFICULTY = 3
+#     NUM_PROSUMERS = 100
+#     NUM_MINERS = 10 
+#     SIMULATION_STEPS = 24
     
-    energy_chain = Blockchain(difficulty=DIFFICULTY)
+#     energy_chain = Blockchain(difficulty=DIFFICULTY)
     
-    # Creiamo la lista di nomi dei miner UNA SOLA VOLTA
-    miners_names = [f"Miner_Node_{i}" for i in range(1, NUM_MINERS + 1)]
+#     # Creiamo la lista di nomi dei miner UNA SOLA VOLTA
+#     miners_names = [f"Miner_Node_{i}" for i in range(1, NUM_MINERS + 1)]
     
-    print(f"--- INIZIO SIMULAZIONE BLOCKCHAIN SMART GRID ---")
-    print(f"Target PoW: {DIFFICULTY} zeri iniziali")
-    print(f"Step totali: {SIMULATION_STEPS}\n")
+#     print(f"--- INIZIO SIMULAZIONE BLOCKCHAIN SMART GRID ---")
+#     print(f"Target PoW: {DIFFICULTY} zeri iniziali")
+#     print(f"Step totali: {SIMULATION_STEPS}\n")
 
-    for step in range(1, SIMULATION_STEPS + 1):
-        print(f"\n--- STEP TEMPORALE {step}/{SIMULATION_STEPS} ---")
+#     for step in range(1, SIMULATION_STEPS + 1):
+#         print(f"\n--- STEP TEMPORALE {step}/{SIMULATION_STEPS} ---")
         
-        # A. FASE DI GENERAZIONE TRANSAZIONI
-        num_transactions = random.randint(5, 15)
-        for _ in range(num_transactions):
-            sender = f"Prosumer_{random.randint(1, NUM_PROSUMERS)}"
-            receiver = f"Prosumer_{random.randint(1, NUM_PROSUMERS)}"
-            while receiver == sender:
-                receiver = f"Prosumer_{random.randint(1, NUM_PROSUMERS)}"
-            amount = round(random.uniform(0.5, 5.0), 2)
-            price = round(random.uniform(0.10, 0.30), 3)
+#         # A. FASE DI GENERAZIONE TRANSAZIONI
+#         num_transactions = random.randint(5, 15)
+#         for _ in range(num_transactions):
+#             sender = f"Prosumer_{random.randint(1, NUM_PROSUMERS)}"
+#             receiver = f"Prosumer_{random.randint(1, NUM_PROSUMERS)}"
+#             while receiver == sender:
+#                 receiver = f"Prosumer_{random.randint(1, NUM_PROSUMERS)}"
+#             amount = round(random.uniform(0.5, 5.0), 2)
+#             price = round(random.uniform(0.10, 0.30), 3)
             
-            tx = Transaction(sender, receiver, amount, price, step)
-            energy_chain.add_transaction(tx)
+#             tx = Transaction(sender, receiver, amount, price, step)
+#             energy_chain.add_transaction(tx)
             
-        print(f"   {num_transactions} transazioni aggiunte alla Mempool.")
+#         print(f"   {num_transactions} transazioni aggiunte alla Mempool.")
 
-        # B. FASE DI MINING (CONSENSO) - CORRETTA
-        # Creiamo una lista temporanea per i risultati di QUESTA gara
-        current_round_competitors = []
+#         # B. FASE DI MINING (CONSENSO) - CORRETTA
+#         # Creiamo una lista temporanea per i risultati di QUESTA gara
+#         current_round_competitors = []
 
-        for miner_name in miners_names:
-            # Istanziamo il miner
-            m = Miner(miner_name)
-            # Calcoliamo la sua potenza attuale
-            power = m.Pow_compete()
-            # Salviamo il risultato
-            current_round_competitors.append((miner_name, power))
+#         for miner_name in miners_names:
+#             # Istanziamo il miner
+#             m = Miner(miner_name)
+#             # Calcoliamo la sua potenza attuale
+#             power = m.Pow_compete()
+#             # Salviamo il risultato
+#             current_round_competitors.append((miner_name, power))
         
-        # Troviamo chi ha il valore 'hash_power' più alto (simulazione di chi trova prima il blocco)
-        winner_name, winner_power = max(current_round_competitors, key=lambda x: x[1])
+#         # Troviamo chi ha il valore 'hash_power' più alto (simulazione di chi trova prima il blocco)
+#         winner_name, winner_power = max(current_round_competitors, key=lambda x: x[1])
         
-        print(f"   Miner vincente: {winner_name} (Hash Power: {winner_power:.4f})")
+#         print(f"   Miner vincente: {winner_name} (Hash Power: {winner_power:.4f})")
         
-        # Il vincitore mina il blocco reale
-        energy_chain.mine_pending_transactions(winner_name)
+#         # Il vincitore mina il blocco reale
+#         energy_chain.mine_pending_transactions(winner_name)
 
-    # --- VERIFICA FINALE ---
-    print("\n--- FINE SIMULAZIONE ---")
-    print(f"Lunghezza Catena: {len(energy_chain.chain)} blocchi")
+#     # --- VERIFICA FINALE ---
+#     print("\n--- FINE SIMULAZIONE ---")
+#     print(f"Lunghezza Catena: {len(energy_chain.chain)} blocchi")
     
-    is_valid = energy_chain.is_chain_valid()
-    print(f"Integrità Blockchain: {'VALIDA' if is_valid else 'CORROTTA'}")
+#     is_valid = energy_chain.is_chain_valid()
+#     print(f"Integrità Blockchain: {'VALIDA' if is_valid else 'CORROTTA'}")
     
-    last_block = energy_chain.chain[-1]
-    print("\n[Dettaglio Ultimo Blocco]:")
-    print(json.dumps({
-        "Index": last_block.index,
-        "Hash": last_block.hash,
-        "PrevHash": last_block.previous_hash,
-        "Transactions": len(last_block.transactions)
-    }, indent=4))
+#     last_block = energy_chain.chain[-1]
+#     print("\n[Dettaglio Ultimo Blocco]:")
+#     print(json.dumps({
+#         "Index": last_block.index,
+#         "Hash": last_block.hash,
+#         "PrevHash": last_block.previous_hash,
+#         "Transactions": len(last_block.transactions)
+#     }, indent=4))
 
-if __name__ == "__main__":
-    run_simulation()
+# if __name__ == "__main__":
+#     run_simulation()
 
 
 '''Per integrare il tutto, importa la classe Blockchain nel tuo file principale della simulazione (quello

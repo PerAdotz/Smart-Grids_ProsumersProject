@@ -1,4 +1,5 @@
 import numpy as np
+from Balancing.useful_functions import generate_pv
 class Prosumer:
     def __init__(self, prosumer_id, pv_capacity, load_profile, battery_capacity , neighbourhood):
         """
@@ -23,22 +24,7 @@ class Prosumer:
     def get_load(self, hour):
         return self.load_profile[hour]
     
-    def generate_pv(self , hour):
-        # simple model: PV generation peaks at midday
-        peak_generation = self.pv_capacity
-        hours_of_daylight = 12
-        time_from_sunrise = hour - 6
-        
-        # Sin function: 0 at sunrise/sunset, 1 at noon
-        sun_intensity = np.sin(np.pi * time_from_sunrise / hours_of_daylight)
-        if 6 <= hour <= 19:
-            generation = peak_generation * sun_intensity * np.random.uniform(0.8,1.0)  #random for the weather effect
-        else:
-            generation = 0
-        return generation
-    
 
-    
     def get_stats(self , hour):
         stats = {
             "id": self.id,
@@ -54,7 +40,7 @@ class Prosumer:
         return stats
     
     def self_balance(self, hour):
-        pv_generation = self.generate_pv(hour)
+        pv_generation = generate_pv(self.pv_capacity, hour)
         load = self.get_load(hour)
         residual = load - pv_generation # POSITIVE IF DEFICIT (neeeds to buy), NEGATIVE IF SURPLUS (needs to sell)
         # self.imbalance = self.imbalance - residual # - because if residual is positive, imbalance should decrease

@@ -20,13 +20,16 @@ def generate_load_profile():
     load = [l * np.random.uniform(0.9, 1.1) for l in load]
     return load  #output is a list of 24 hours load , to access is we can use load[hour] no need for a dictionary 
 
-# plt.figure()
-# hours = range(24)
-# sample_load = generate_load_profile()
-# plt.plot(hours, sample_load, label='Sample Load Profile')
-# plt.xlabel('Hour of Day')
-# plt.ylabel('Load (kWh)')
-# plt.title('Sample Daily Load Profile and PV Generation')
-# plt.legend()
-# plt.grid()
-# plt.show()
+def generate_pv(pv_capacity, hour):
+        # simple model: PV generation peaks at midday
+        peak_generation = pv_capacity
+        hours_of_daylight = 12
+        time_from_sunrise = hour - 6
+        
+        # Sin function: 0 at sunrise/sunset, 1 at noon
+        sun_intensity = np.sin(np.pi * time_from_sunrise / hours_of_daylight)
+        if 6 <= hour <= 19:
+            generation = peak_generation * sun_intensity * np.random.uniform(0.8,1.0)  #random for the weather effect
+        else:
+            generation = 0
+        return generation

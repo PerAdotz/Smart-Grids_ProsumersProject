@@ -1,8 +1,10 @@
+from Blockchain.blockchain_V1 import Transaction
+
 class BalancingProcess:
     def __init__(self, neighbourhoods):
         """
         Manages the three-step balancing for all prosumers
-        neighbourhoods: dictionary of neighbourhood_id: list of Prosumers
+        neighbourhoods: dictionary of neighbourhood_id: list of Prosumers objects
         """
         self.neighbourhoods = neighbourhoods
         self.hour = 0
@@ -15,7 +17,7 @@ class BalancingProcess:
             for prosumer in prosumers_in_neighbourhood:
                 prosumer.self_balance(self.hour)
 
-    def step2_local_market(self):
+    def step2_local_market(self , energy_chain):
         for neighbourhood , prosumers_in_neighbourhood in self.neighbourhoods.items():
             local_prosumers = prosumers_in_neighbourhood
             # Separate buyers and sellers
@@ -64,10 +66,13 @@ class BalancingProcess:
                         "type": "P2P",
                         "hour": self.hour
                     }
-                        
                     buyer.transactions[self.hour].append(transaction)
                     seller.transactions[self.hour].append(transaction)
-                    
+
+                    tx = Transaction(sender=transaction["sender"], receiver=transaction["receiver"], 
+                                     amount=transaction["amount"], price=transaction["price_per_kWh"], step=self.hour)
+                    energy_chain.add_transaction(tx)
+
                     # Move to next if fully satisfied/depleted
                     if abs(buyer.imbalance) == 0:
                         b_idx += 1
@@ -78,12 +83,13 @@ class BalancingProcess:
                     # If best buyer won't pay best seller's price, no more trades possible
                     break
 
-    def step3_grid_interaction(self, current_market_price, margin=0.05):
+    def step3_grid_interaction(self, current_market_price , energy_chain, margin=0.05):
         """
         Step 3: Local Market / Grid Interaction (Aggregator)
         Any remaining imbalance is cleared with the aggregator.
         
         current_market_price: The D-1 price for this hour.
+        energy_chain: The blockchain instance to record transactions.
         margin: The percentage fee/penalty for using the grid (default 5%).
         """
         # Iterate through all prosumers in all neighbourhoods
@@ -141,3 +147,6 @@ class BalancingProcess:
                 # Record transaction
                 if transaction:
                     p.transactions[self.hour].append(transaction)
+                    tx = Transaction(sender=transaction["sender"], receiver=transaction["receiver"], 
+                                     amount=transaction["amount"], price=transaction["price_per_kWh"], step=self.hour)
+                    energy_chain.add_transaction(tx)
