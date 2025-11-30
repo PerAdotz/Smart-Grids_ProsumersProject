@@ -123,6 +123,15 @@ class Blockchain:
             if current.hash[:self.difficulty] != "0" * self.difficulty:
                 return False
         return True
+    
+    def winner_selection(self, competitors_list , powers_list):
+        winner_list = random.choices(competitors_list, weights=powers_list, k=1)
+        winner_name = winner_list[0]
+        
+        # Retrieve the winner's power just for printing verification
+        winner_idx = competitors_list.index(winner_name)
+        winner_power = powers_list[winner_idx]
+        return winner_name , winner_power
 
 # --- 4. MINER CLASS ---
 class Miner:
@@ -137,86 +146,86 @@ class Miner:
         return self.hash_power
 
 # --- 5. SIMULATION CONFIGURATION ---
-def run_simulation():
-    DIFFICULTY = 3
-    NUM_PROSUMERS = 100
-    NUM_MINERS = 10 
-    SIMULATION_STEPS = 24
+# def run_simulation():
+#     DIFFICULTY = 3
+#     NUM_PROSUMERS = 100
+#     NUM_MINERS = 10 
+#     SIMULATION_STEPS = 24
     
-    energy_chain = Blockchain(difficulty=DIFFICULTY)
+#     energy_chain = Blockchain(difficulty=DIFFICULTY)
     
-    # Create miner names list ONCE
-    miners_names = [f"Miner_Node_{i}" for i in range(1, NUM_MINERS + 1)]
+#     # Create miner names list ONCE
+#     miners_names = [f"Miner_Node_{i}" for i in range(1, NUM_MINERS + 1)]
     
-    print(f"--- START OF SMART GRID BLOCKCHAIN SIMULATION ---")
-    print(f"PoW Target: {DIFFICULTY} leading zeros")
-    print(f"Total Steps: {SIMULATION_STEPS}\n")
+#     print(f"--- START OF SMART GRID BLOCKCHAIN SIMULATION ---")
+#     print(f"PoW Target: {DIFFICULTY} leading zeros")
+#     print(f"Total Steps: {SIMULATION_STEPS}\n")
 
-    for step in range(1, SIMULATION_STEPS + 1):
-        print(f"\n--- TIME STEP {step}/{SIMULATION_STEPS} ---")
+#     for step in range(1, SIMULATION_STEPS + 1):
+#         print(f"\n--- TIME STEP {step}/{SIMULATION_STEPS} ---")
         
-        # A. TRANSACTION GENERATION PHASE (Simulated)
-        num_transactions = random.randint(5, 15)
-        for _ in range(num_transactions):
-            sender = f"Prosumer_{random.randint(1, NUM_PROSUMERS)}"
-            receiver = f"Prosumer_{random.randint(1, NUM_PROSUMERS)}"
-            while receiver == sender:
-                receiver = f"Prosumer_{random.randint(1, NUM_PROSUMERS)}"
+#         # A. TRANSACTION GENERATION PHASE (Simulated)
+#         num_transactions = random.randint(5, 15)
+#         for _ in range(num_transactions):
+#             sender = f"Prosumer_{random.randint(1, NUM_PROSUMERS)}"
+#             receiver = f"Prosumer_{random.randint(1, NUM_PROSUMERS)}"
+#             while receiver == sender:
+#                 receiver = f"Prosumer_{random.randint(1, NUM_PROSUMERS)}"
             
-            amount = round(random.uniform(0.5, 5.0), 2)
-            price = round(random.uniform(0.10, 0.30), 3)
+#             amount = round(random.uniform(0.5, 5.0), 2)
+#             price = round(random.uniform(0.10, 0.30), 3)
             
-            tx = Transaction(sender, receiver, amount, price, step)
-            energy_chain.add_transaction(tx)
+#             tx = Transaction(sender, receiver, amount, price, step)
+#             energy_chain.add_transaction(tx)
             
-        print(f"   {num_transactions} transactions added to Mempool.")
+#         print(f"   {num_transactions} transactions added to Mempool.")
 
-        # ==========================================
-        # B. MINING PHASE (CONSENSUS) - PROBABILISTIC
-        # ==========================================
+#         # ==========================================
+#         # B. MINING PHASE (CONSENSUS) - PROBABILISTIC
+#         # ==========================================
         
-        competitors_names = []
-        competitors_weights = [] 
+#         competitors_names = []
+#         competitors_weights = [] 
 
-        # 1. Each miner calculates their current power/stake
-        for miner_name in miners_names:
-            m = Miner(miner_name)
-            power = m.Pow_compete() # Returns a value between 0.1 and 1.0
+#         # 1. Each miner calculates their current power/stake
+#         for miner_name in miners_names:
+#             m = Miner(miner_name)
+#             power = m.Pow_compete() # Returns a value between 0.1 and 1.0
             
-            competitors_names.append(miner_name)
-            competitors_weights.append(power)
+#             competitors_names.append(miner_name)
+#             competitors_weights.append(power)
         
-        # 2. PROBABILISTIC Winner Selection
-        # random.choices selects a winner based on weights.
-        # Higher weight = Higher probability, but not guaranteed win.
-        winner_list = random.choices(competitors_names, weights=competitors_weights, k=1)
-        winner_name = winner_list[0]
+#         # 2. PROBABILISTIC Winner Selection
+#         # random.choices selects a winner based on weights.
+#         # Higher weight = Higher probability, but not guaranteed win.
+#         winner_list = random.choices(competitors_names, weights=competitors_weights, k=1)
+#         winner_name = winner_list[0]
         
-        # Retrieve the winner's power just for printing verification
-        winner_idx = competitors_names.index(winner_name)
-        winner_val = competitors_weights[winner_idx]
+#         # Retrieve the winner's power just for printing verification
+#         winner_idx = competitors_names.index(winner_name)
+#         winner_val = competitors_weights[winner_idx]
         
-        print(f"   Winning Miner: {winner_name} (Hash Power/Stake: {winner_val:.4f})")
+#         print(f"   Winning Miner: {winner_name} (Hash Power/Stake: {winner_val:.4f})")
         
-        # The winner actually mines the block and adds it to the chain
-        energy_chain.mine_pending_transactions(winner_name)
+#         # The winner actually mines the block and adds it to the chain
+#         energy_chain.mine_pending_transactions(winner_name)
 
-    # --- FINAL VERIFICATION ---
-    print("\n--- END OF SIMULATION ---")
-    print(f"Chain Length: {len(energy_chain.chain)} blocks")
+#     # --- FINAL VERIFICATION ---
+#     print("\n--- END OF SIMULATION ---")
+#     print(f"Chain Length: {len(energy_chain.chain)} blocks")
     
-    is_valid = energy_chain.is_chain_valid()
-    status = "VALID" if is_valid else "CORRUPTED"
-    print(f"Blockchain Integrity: {status}")
+#     is_valid = energy_chain.is_chain_valid()
+#     status = "VALID" if is_valid else "CORRUPTED"
+#     print(f"Blockchain Integrity: {status}")
     
-    last_block = energy_chain.chain[-1]
-    print("\n[Last Block Details]:")
-    print(json.dumps({
-        "Index": last_block.index,
-        "Hash": last_block.hash,
-        "PrevHash": last_block.previous_hash,
-        "Transactions": len(last_block.transactions)
-    }, indent=4))
+#     last_block = energy_chain.chain[-1]
+#     print("\n[Last Block Details]:")
+#     print(json.dumps({
+#         "Index": last_block.index,
+#         "Hash": last_block.hash,
+#         "PrevHash": last_block.previous_hash,
+#         "Transactions": len(last_block.transactions)
+#     }, indent=4))
 
-if __name__ == "__main__":
-    run_simulation()
+# if __name__ == "__main__":
+#     run_simulation()

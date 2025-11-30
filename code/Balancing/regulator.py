@@ -1,4 +1,5 @@
 class Regulator:
+    # it' just a mock class for now doeant't do anything meaningful
     def __init__(self, objective="Maximize_P2P"):
         self.objective = objective
         self.history_log = []

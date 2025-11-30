@@ -7,6 +7,7 @@ class Prosumer:
         pv_capacity: max PV generation in kW
         load_profile: list of 24 hour loads [kWh]
         battery_capacity: battery size in kWh
+        neighbourhood: neighbourhood ID
         """
         self.id = prosumer_id
         self.pv_capacity = pv_capacity # max PV generation in kW
@@ -35,6 +36,8 @@ class Prosumer:
             "money_balance": self.money_balance,
             "trading_price": self.trading_price,
             "neighbourhood": self.neighbourhood,
+            "load" : self.get_load(hour),
+            "pv_generation" : generate_pv(self.pv_capacity , hour),
             "transactions": self.transactions[hour]
         }
         return stats

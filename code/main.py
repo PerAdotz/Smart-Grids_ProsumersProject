@@ -3,7 +3,7 @@ from Balancing.balancingProcess import BalancingProcess
 import numpy as np
 import pandas as pd
 from Balancing.useful_functions import generate_load_profile
-from Blockchain.blockchain_V1 import Blockchain , Miner
+from Blockchain.blockchain_v2 import Blockchain , Miner
 from Balancing.regulator import Regulator
 
 NUM_PROSUMERS = 100
@@ -14,7 +14,7 @@ NUM_MINERS = 10
 
 
 def run_simulation():
-    #list of all prosumers
+    #list of all prosumers, it's useless actually because we have the neighbourhoods dictionary
     prosumers = []
     neighbourhoods = {i: [] for i in range(NUM_NEIGHBOURHOODS)}  # dictionnary to hold prosumers by neighbourhood
 
@@ -57,22 +57,25 @@ def run_simulation():
 
         #--- REGULATOR
 
-        regulator.apply_regulations(prosumers, hour)
+        # regulator.apply_regulations(prosumers, hour)
 
         #--- BLOCKCHAIN
 
-        current_round_competitors = []
+        competitors_names = []
+        competitors_weights = []
+
         for miner_name in miners_names:
             m = Miner(miner_name)
             power = m.Pow_compete()
-            current_round_competitors.append((miner_name, power))
+
+            competitors_names.append(miner_name)
+            competitors_weights.append(power)
         
-        # Troviamo chi ha il valore 'hash_power' più alto (simulazione di chi trova prima il blocco)
-        winner_name, winner_power = energy_chain.winner_selection(current_round_competitors)
+        winner_name , winner_power = energy_chain.winner_selection(competitors_names , competitors_weights)
         
         print(f"  Winner Miner: {winner_name} (Hash Power: {winner_power:.4f})")
         
-        # Il vincitore mina il blocco reale
+        # Winner miner mines the pending transactions
         energy_chain.mine_pending_transactions(winner_name)
 
 
@@ -97,7 +100,7 @@ def run_simulation():
 
     output_stats = pd.DataFrame(stats_list)
     output_stats.to_csv("code/prosumer_stats.csv", index=False)
-    print(f"Chain Length: {len(energy_chain.chain)} blocks")
+    print(f"\nChain Length: {len(energy_chain.chain)} blocks")
     is_valid = energy_chain.is_chain_valid()
     print(f"Blockchain Integrity: {'VALID' if is_valid else 'CORRUPTED'}")
     print("\nSimulation complete. Prosumer stats saved to 'prosumer_stats.csv'.")
