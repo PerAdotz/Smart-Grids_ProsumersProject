@@ -54,6 +54,10 @@ class Prosumer:
             "neighbourhood": self.neighbourhood,
             "load" : self.get_load(hour),
             "pv_generation" : self.generate_pv(date, hour),
+            "bonus": self.bonus,
+            "penalty": self.penalty,
+            "p2p_exchanges": self.p2p_exchanges,
+            "agg_exchanges": self.agg_exchanges,
             "transactions": self.transactions[hour]
         }
         return stats

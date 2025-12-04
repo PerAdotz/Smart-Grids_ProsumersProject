@@ -68,10 +68,6 @@ def run_simulation():
     for hour in range(HOURS):
         print(f"\n--- Hour {hour} ---")
 
-        #--- REGULATOR
-
-        regulator.apply_regulations(prosumers, hour , P2P_BONUS_POLICY, GRID_PENALTY_POLICY)
-
         #--- BALANCING
 
         balancing.set_date_and_hour(date, hour)
@@ -110,6 +106,10 @@ def run_simulation():
         # Winner miner mines the pending transactions
         energy_chain.mine_pending_transactions(winner_name)
 
+        #--- REGULATOR
+
+        regulator.apply_regulations(prosumers, hour , P2P_BONUS_POLICY, GRID_PENALTY_POLICY)
+
         #--- STATS
 
         # put stats of each prosumer in a pandas df 
@@ -126,6 +126,10 @@ def run_simulation():
                     "money_balance": stats["money_balance"],
                     "trading_price": stats["trading_price"],
                     "neighbourhood": stats["neighbourhood"],
+                    "bonus": stats["bonus"],
+                    "penalty": stats["penalty"],
+                    "p2p_exchanges": stats["p2p_exchanges"],
+                    "agg_exchanges": stats["agg_exchanges"],
                     "transactions": stats["transactions"]
                 })
 
