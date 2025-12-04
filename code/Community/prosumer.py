@@ -1,32 +1,43 @@
 import numpy as np
-from Balancing.useful_functions import generate_pv
+from .useful_functions import generate_pv
+from PvForecast.pvModel import PvModel
+
 class Prosumer:
-    def __init__(self, prosumer_id, pv_capacity, load_profile, battery_capacity , neighbourhood):
+    def __init__(self, prosumer_id, pv_capacity, load_profile, battery_capacity, losses, neighbourhood, latitude, longitude, pv_model_path=None):
         """
         prosumer_id: unique identifier (1-100)
         pv_capacity: max PV generation in kW
         load_profile: list of 24 hour loads [kWh]
         battery_capacity: battery size in kWh
+        losses:
         neighbourhood: neighbourhood ID
+        latitude:
+        longitude:
         """
         self.id = prosumer_id
         self.pv_capacity = pv_capacity # max PV generation in kW
         self.load_profile = load_profile # list of 24 hour loads [kWh]
         self.battery_capacity = battery_capacity # battery size in kWh
+        self.losses = losses
         self.neighbourhood = neighbourhood # neighbourhood ID
+        self.latitude = latitude
+        self.longitude = longitude
 
-        self.battery_level = 0  # current battery level in kWh
-        self.imbalance = 0  # current energy imbalance in kWh for the hour
-        self.money_balance = 0    # money balance (earnings - costs)
-        self.transactions = {hour: [] for hour in range(24)}  # record of transactions per hour
+        # Load the model for PV generation prediction
+        self.pv_model = PvModel()
+        if pv_model_path:
+            self.pv_model.load_model(pv_model_path)
+
+        self.battery_level = 0 # current battery level in kWh
+        self.imbalance = 0 # current energy imbalance in kWh for the hour
+        self.money_balance = 0 # money balance (earnings - costs)
+        self.transactions = {hour: [] for hour in range(24)} # record of transactions per hour
         self.trading_price = 0 # price per kWh for trading in local market for the current hour
 
-    
     def get_load(self, hour):
         return self.load_profile[hour]
-    
 
-    def get_stats(self , hour):
+    def get_stats(self, date, hour):
         stats = {
             "id": self.id,
             "pv_capacity": self.pv_capacity,
@@ -37,13 +48,23 @@ class Prosumer:
             "trading_price": self.trading_price,
             "neighbourhood": self.neighbourhood,
             "load" : self.get_load(hour),
-            "pv_generation" : generate_pv(self.pv_capacity , hour),
+            "pv_generation" : self.generate_pv(date, hour),
             "transactions": self.transactions[hour]
         }
         return stats
     
-    def self_balance(self, hour):
-        pv_generation = generate_pv(self.pv_capacity, hour)
+    def get_params(self):
+        params = {
+            "id": self.id,
+            "pv_capacity": self.pv_capacity,
+            "battery_capacity": self.battery_capacity,
+            "latitude": self.latitude,
+            "longitude": self.longitude
+        }
+        return params
+    
+    def self_balance(self, date, hour):
+        pv_generation = self.generate_pv(date, hour)
         load = self.get_load(hour)
         residual = load - pv_generation # POSITIVE IF DEFICIT (neeeds to buy), NEGATIVE IF SURPLUS (needs to sell)
         # self.imbalance = self.imbalance - residual # - because if residual is positive, imbalance should decrease
@@ -65,7 +86,6 @@ class Prosumer:
                 self.battery_level = self.battery_level + energy_to_store
                 self.imbalance = self.imbalance + energy_to_store  # adding because imbalance is negative
 
-
     # NEW METHOD: Prosumer decides their price based on the market reference
     def calculate_trading_price(self, current_market_price):
         """
@@ -83,3 +103,8 @@ class Prosumer:
             self.trading_price = current_market_price * np.random.uniform(0.9, 1.1)
         else:
             self.trading_price = 0
+    
+    def generate_pv(self, date, hour):
+        params = self.get_params()
+        generation = self.pv_model.predict_single_point(params, date, hour)
+        return generation

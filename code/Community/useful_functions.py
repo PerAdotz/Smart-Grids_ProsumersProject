@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+
 def generate_load_profile():
     base_load = np.random.uniform(0.5, 1.5)  # Base consumption
     
@@ -18,7 +19,7 @@ def generate_load_profile():
     
     # Add randomness
     load = [l * np.random.uniform(0.9, 1.1) for l in load]
-    return load  #output is a list of 24 hours load , to access is we can use load[hour] no need for a dictionary 
+    return load  # output is a list of 24 hours load , to access is we can use load[hour] no need for a dictionary 
 
 def generate_pv(pv_capacity, hour):
         # simple model: PV generation peaks at midday
