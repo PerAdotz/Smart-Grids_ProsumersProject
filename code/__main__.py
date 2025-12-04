@@ -5,6 +5,7 @@ from Blockchain.blockchain_v2 import Blockchain , Miner
 from Balancing.regulator import Regulator
 from Community.community import generate_community
 from PvForecast.pvModel import PvModel
+import os
 
 NUM_PROSUMERS = 100
 NUM_NEIGHBOURHOODS = 10
@@ -32,7 +33,10 @@ PV_CAPACITY = 0.25 # PV pannel capacity in kW
 BATTERY_RANGE = [0, 5, 10] # Battery capacity in kW
 LOSSES = 14 # Sum of PV system losses in percent
 
-pv_model_path = "PvForecast/pv_predictor_xgb.joblib"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+pv_model_path = os.path.join(BASE_DIR, "PvForecast", "pv_predictor_xgb.joblib")
+
+# pv_model_path = "PvForecast/pv_predictor_xgb.joblib"
 
 def run_simulation():
     #  Date of the simulation 
