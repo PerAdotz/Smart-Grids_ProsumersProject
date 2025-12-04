@@ -118,7 +118,8 @@ def run_simulation():
                 })
 
     output_stats = pd.DataFrame(stats_list)
-    output_stats.to_csv("prosumer_stats.csv", index=False) # if we run the file from the code folder
+    stats_path = os.path.join(BASE_DIR, "prosumer_stats.csv")
+    output_stats.to_csv(stats_path, index=False) # if we run the file from the code folder
     print(f"\nChain Length: {len(energy_chain.chain)} blocks")
     is_valid = energy_chain.is_chain_valid()
     print(f"Blockchain Integrity: {'VALID' if is_valid else 'CORRUPTED'}")
