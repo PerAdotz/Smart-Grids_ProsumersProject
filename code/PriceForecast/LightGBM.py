@@ -11,11 +11,11 @@ from math import sqrt
 
 # =====File Extraction=====
 
-df_2021 = pd.read_excel('C:/Users/parni/Desktop/Smart Grids/Anno 2021.xlsx', sheet_name='Prezzi-Prices')
-df_2022 = pd.read_excel('C:/Users/parni/Desktop/Smart Grids/Anno 2022.xlsx', sheet_name='Prezzi-Prices')
-df_2023 = pd.read_excel('C:/Users/parni/Desktop/Smart Grids/Anno 2023.xlsx', sheet_name='Prezzi-Prices')
-df_2024 = pd.read_excel('C:/Users/parni/Desktop/Smart Grids/Anno 2024.xlsx', sheet_name='Prezzi-Prices')
-df_2025 = pd.read_excel('C:/Users/parni/Desktop/Smart Grids/Anno 2025_10.xlsx', sheet_name='Prezzi-Prices')
+df_2021 = pd.read_excel('Data_ElectricityMarketPrices/Anno 2021.xlsx', sheet_name='Prezzi-Prices')
+df_2022 = pd.read_excel('Data_ElectricityMarketPrices/Anno 2022.xlsx', sheet_name='Prezzi-Prices')
+df_2023 = pd.read_excel('Data_ElectricityMarketPrices/Anno 2023.xlsx', sheet_name='Prezzi-Prices')
+df_2024 = pd.read_excel('Data_ElectricityMarketPrices/Anno 2024.xlsx', sheet_name='Prezzi-Prices')
+df_2025 = pd.read_excel('Data_ElectricityMarketPrices/Anno 2025_10.xlsx', sheet_name='Prezzi-Prices')
 
 # after exploring the excel files , I discovered that all of the columns name were similar except for "PUN " in df_2025 :
 
