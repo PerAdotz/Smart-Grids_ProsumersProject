@@ -7,13 +7,13 @@ import os
 import sys
 
 # Get the directory of the current file (PvForecast)
-current_dir = os.path.dirname(os.path.abspath(__file__))
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Get the directory of the 'code' folder (one level up)
-code_dir = os.path.dirname(current_dir)
+BASE_DIR = os.path.dirname(CURRENT_DIR)
 
 # Add the 'code' directory to the Python search path
-sys.path.append(code_dir)
+sys.path.append(BASE_DIR)
 
 from Community.community import generate_community
 
@@ -87,7 +87,7 @@ if __name__ == "__main__":
     DATE_START = 2021
     DATE_END = 2023
 
-    output_filename = 'PvForecast/pv_historical_dataset.csv'
+    output_data_path = os.path.join(BASE_DIR, CURRENT_DIR, "pv_historical_dataset.csv")
 
     # Generate a community for which retreiving data
     prosumers, neighbourhoods = generate_community(NUM_PROSUMERS, NUM_NEIGHBOURHOODS, NEIGHBOURHOOD_POOL, PV_NUMBER_RANGE, PV_CAPACITY, BATTERY_RANGE, LOSSES)
@@ -104,7 +104,7 @@ if __name__ == "__main__":
     dataset = pd.concat(all_dataframes, axis=0)
 
     # Save the DataFrame to a CSV file
-    dataset.to_csv(output_filename, index=True)
+    dataset.to_csv(output_data_path, index=True)
 
     print("Total rows:", len(dataset))
     print("Features:", list(dataset.columns))

@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import joblib
+import os
 
 class PvModel:
 
@@ -129,12 +130,14 @@ class PvModel:
         return prediction[0]
 
 if __name__ == "__main__":
-    training = False
+    training = True
 
     TRAIN_RATIO = 0.80
 
-    input_filename = 'PvForecast/pv_historical_dataset.csv'
-    output_filename = 'PvForecast/pv_predictor_xgb.joblib'
+    CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+    BASE_DIR = os.path.dirname(CURRENT_DIR)
+    imput_data_path = os.path.join(BASE_DIR, CURRENT_DIR, "pv_historical_dataset.csv")
+    output_model_path = os.path.join(BASE_DIR, CURRENT_DIR, "pv_predictor_xgb.joblib")
 
     # Initialize model
     model = PvModel()
@@ -142,7 +145,7 @@ if __name__ == "__main__":
     # Train
     if training:
         # Load dataset
-        dataset = pd.read_csv(input_filename)
+        dataset = pd.read_csv(imput_data_path)
 
         # Split the dataset
         model.split(dataset, TRAIN_RATIO)
@@ -154,12 +157,12 @@ if __name__ == "__main__":
         model.test()
 
         # Save model
-        model.save_model(output_filename)
+        model.save_model(output_model_path)
     
     # Predict
     else:
         # Load model
-        model.load_model(output_filename)
+        model.load_model(output_model_path)
 
         # Predict for a test prosumer at noon on the 15th of June
         prosumer = {
