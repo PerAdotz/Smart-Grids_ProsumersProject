@@ -11,11 +11,12 @@ from math import sqrt
 
 # =====File Extraction=====
 
-df_2021 = pd.read_excel('code/Data_ElectricityMarketPrices/Anno 2021.xlsx', sheet_name='Prezzi-Prices')
-df_2022 = pd.read_excel('code/Data_ElectricityMarketPrices/Anno 2022.xlsx', sheet_name='Prezzi-Prices')
-df_2023 = pd.read_excel('code/Data_ElectricityMarketPrices/Anno 2023.xlsx', sheet_name='Prezzi-Prices')
-df_2024 = pd.read_excel('code/Data_ElectricityMarketPrices/Anno 2024.xlsx', sheet_name='Prezzi-Prices')
-df_2025 = pd.read_excel('code/Data_ElectricityMarketPrices/Anno 2025_10.xlsx', sheet_name='Prezzi-Prices')
+df_2021 = pd.read_excel('C:/Users/parni/Desktop/Smart Grids/Anno 2021.xlsx', sheet_name='Prezzi-Prices')
+df_2022 = pd.read_excel('C:/Users/parni/Desktop/Smart Grids/Anno 2022.xlsx', sheet_name='Prezzi-Prices')
+df_2023 = pd.read_excel('C:/Users/parni/Desktop/Smart Grids/Anno 2023.xlsx', sheet_name='Prezzi-Prices')
+df_2024 = pd.read_excel('C:/Users/parni/Desktop/Smart Grids/Anno 2024.xlsx', sheet_name='Prezzi-Prices')
+df_2025 = pd.read_excel('C:/Users/parni/Desktop/Smart Grids/Anno 2025_10.xlsx', sheet_name='Prezzi-Prices')
+
 # after exploring the excel files , I discovered that all of the columns name were similar except for "PUN " in df_2025 :
 
 dataframes_list = [df_2021, df_2022, df_2023, df_2024, df_2025]
@@ -488,14 +489,148 @@ def predict_next_spike_aware(df, model, zone="PUN",
 # ----------------------------------------------------------------------
 # MAIN
 # ----------------------------------------------------------------------
+# === Build concatenated dataframe across all years ===
+#     for both training and hourly prediction.
+df_all = pd.concat(
+    [df_2021, df_2022, df_2023, df_2024, df_2025],
+    ignore_index=True
+)
+#========================================
+# for only an hour ahead
+#========================================
+def predict_prices_for_hour(
+        df_all,
+        model,
+        target_columns,
+        date_int,
+        hour_int,
+        lookback=24
+    ):
+    """
+    Predict NEXT-hour prices for ALL zones, using data up to (date_int, hour_int).
+
+    Parameters
+    ----------
+    df_all : DataFrame
+        Full concatenated dataset with columns: Date, Hour, and zone prices.
+    model : MultiOutputRegressor
+        LightGBM multi-output model returned by run_lgbm_forecast().
+    target_columns : list of str
+        Names of the price columns (e.g. ["PUN", "AUST", ...]).
+    date_int : int
+        Date in YYYYMMDD format (e.g. 20210315).
+    hour_int : int
+        Hour in the same format as in the dataset (0–23 or 1–24).
+    lookback : int
+        Number of past hours used in training.
+
+    Returns
+    -------
+    dict
+        {zone_name: predicted_price_for_next_hour}
+    """
+
+    # Work on a copy, sorted by time
+    df_sub = df_all.copy()
+    df_sub = df_sub.sort_values(["Date", "Hour"])
+
+    # Keep only rows up to and including (date_int, hour_int)
+    mask = (df_sub["Date"] < date_int) | (
+        (df_sub["Date"] == date_int) & (df_sub["Hour"] <= hour_int)
+    )
+    df_hist = df_sub[mask]
+
+    if df_hist.shape[0] < lookback + 5:
+        raise ValueError("Not enough history before this hour to build features.")
+
+    # Build latest feature vector from this truncated history
+    latest_features, _ = prepare_latest_features(df_hist, target_columns, lookback)
+
+    # Model predicts all zones at once
+    pred_values = model.predict(latest_features)[0]  # shape: (n_zones,)
+
+    # Return as a nice dict
+    return dict(zip(target_columns, pred_values))
+
+
+#===========================================================
+# In case the prediction was proposed for further than one hour :
+#===========================================================
+
+def predict_future_hours(df_all, model, target_columns,
+                         start_date_int, start_hour_int,
+                         horizon=6, lookback=24):
+    """
+    Predict multiple future hours recursively.
+
+    Parameters
+    ----------
+    df_all : DataFrame
+        The full historical dataset.
+    model : trained MultiOutputRegressor
+    target_columns : list of zones (PUN, AUST, ...)
+    start_date_int : int
+        Date YYYYMMDD from which you want to start forecasting.
+    start_hour_int : int
+        Hour from which you want to start forecasting.
+    horizon : int
+        Number of future hours to predict (default = 6).
+    lookback : int
+        Same lookback used during training.
+
+    Returns
+    -------
+    DataFrame of predicted prices indexed by step: t+1, t+2, ... t+horizon.
+    """
+
+    # Work on a COPY so we don't pollute df_all
+    df_work = df_all.copy().sort_values(["Date", "Hour"])
+
+    # Keep only history up to the start point
+    mask = (df_work["Date"] < start_date_int) | (
+        (df_work["Date"] == start_date_int) & (df_work["Hour"] <= start_hour_int)
+    )
+    df_hist = df_work[mask].copy()
+
+    preds = []
+
+    # For each future hour
+    for step in range(1, horizon + 1):
+
+        # Build latest features from the extended history
+        latest_features, _ = prepare_latest_features(df_hist, target_columns, lookback)
+
+        # Predict next hour
+        pred_values = model.predict(latest_features)[0]
+        pred_dict = dict(zip(target_columns, pred_values))
+        preds.append(pred_dict)
+
+        # Create the "next" time index
+        # Convert start_date_int to datetime for arithmetic
+        dt = pd.to_datetime(df_hist["Date"].iloc[-1].astype(str), format="%Y%m%d")
+        hr = int(df_hist["Hour"].iloc[-1])
+
+        # Advance one hour
+        new_dt = dt + pd.Timedelta(hours=1)
+        new_date_int = int(new_dt.strftime("%Y%m%d"))
+        new_hour_int = new_dt.hour
+
+        # Create a new row for predicted values
+        new_row = {"Date": new_date_int, "Hour": new_hour_int}
+        new_row.update(pred_dict)
+
+        # Append it to the history so recursive predictions work
+        df_hist = pd.concat([df_hist, pd.DataFrame([new_row])], ignore_index=True)
+
+    return pd.DataFrame(preds, index=[f"t+{i}" for i in range(1, horizon + 1)])
+
 
 if __name__ == "__main__":
 
-    df_for_model = df_2021   # choose year
-
+    # 1) Train multi-output model on the FULL concatenated dataset
     lookback = 24
+    df_for_model = df_all
 
-    # 1) General multi-output model (all zones)
     model, targets, features, global_metrics = run_lgbm_forecast(
         df_for_model,
         lookback=lookback
@@ -503,36 +638,40 @@ if __name__ == "__main__":
 
     print("\nGlobal metrics (RMSE, R2):", global_metrics)
 
-    print("\nNext-hour prediction (all zones):")
-    print(predict_next_lgbm(df_for_model, model, targets, lookback))
+    # 2) Example: prediction for a specific historical moment on df_all
+    example_date = 20210315   # YYYYMMDD
+    example_hour = 13         # hour in your dataset convention
 
-    # Plots for PUN (multi-output model)
-    plot_zone_timeseries(df_for_model, model, targets, zone="PUN", lookback=lookback)
-    plot_zone_scatter_error(df_for_model, model, targets, zone="PUN", lookback=lookback)
-    plot_zone_error_vs_price(df_for_model, model, targets, zone="PUN", lookback=lookback)
-    plot_rmse_per_zone(df_for_model, model, targets, lookback=lookback)
-
-    # 2) Spike-aware model for PUN
-    zone = "PUN"
-    model_spike, metrics_spike, (X_test_s, y_test_s, y_pred_s) = run_spike_aware_lgbm(
-        df_for_model,
-        zone=zone,
-        lookback=lookback,
-        weekly_lag=168,
-        roll_windows=(24, 168),
-        spike_threshold=350
+    example_prices = predict_prices_for_hour(
+        df_all,
+        model,
+        targets,
+        date_int=example_date,
+        hour_int=example_hour,
+        lookback=lookback
     )
 
-    print("\nSpike-aware metrics (overall RMSE, R2, normal RMSE, spike RMSE):")
-    print(metrics_spike)
+    print(f"\nPredicted NEXT-hour prices for all zones at {example_date} hour {example_hour}:")
+    print(example_prices)
 
-    next_price_spike = predict_next_spike_aware(
-        df_for_model,
-        model_spike,
-        zone=zone,
-        lookback=lookback,
-        weekly_lag=168,
-        roll_windows=(24, 168)
+    # 3) PLOTTING – aligned with training on df_all
+    plot_zone_timeseries(df_all, model, targets, zone="NORD", lookback=lookback)
+    plot_zone_scatter_error(df_all, model, targets, zone="NORD", lookback=lookback)
+    plot_zone_error_vs_price(df_all, model, targets, zone="NORD", lookback=lookback)
+    plot_rmse_per_zone(df_all, model, targets, lookback=lookback)
+
+    # 4) "Real-time" style prediction using the latest timestamp in df_all
+    latest_date = int(df_all["Date"].iloc[-1])
+    latest_hour = int(df_all["Hour"].iloc[-1])
+
+    latest_prices_dict = predict_prices_for_hour(
+        df_all,
+        model,
+        targets,
+        date_int=latest_date,
+        hour_int=latest_hour,
+        lookback=lookback
     )
 
-    print(f"\nNext-hour predicted price for {zone} (spike-aware): {next_price_spike:.2f}")
+    print(f"\nPredicted NEXT-hour prices for all zones at latest timestamp {latest_date} hour {latest_hour}:")
+    print(latest_prices_dict)
