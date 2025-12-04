@@ -34,6 +34,11 @@ class Prosumer:
         self.transactions = {hour: [] for hour in range(24)} # record of transactions per hour
         self.trading_price = 0 # price per kWh for trading in local market for the current hour
 
+        self.bonus = 0  # total bonuses received from regulator
+        self.penalty = 0  # total penalties paid to regulator
+        self.p2p_exchanges = 0 #number of P2P exchanges made
+        self.agg_exchanges = 0 #number of exchanges with the Aggregator made
+
     def get_load(self, hour):
         return self.load_profile[hour]
 

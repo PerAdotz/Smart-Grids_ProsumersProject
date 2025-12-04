@@ -1,11 +1,12 @@
-from Blockchain.blockchain_V1 import Transaction
+from Blockchain.blockchain_v2 import Transaction
 
 class BalancingProcess:
-    def __init__(self, neighbourhoods):
+    def __init__(self, prosumers , neighbourhoods):
         """
         Manages the three-step balancing for all prosumers
         neighbourhoods: dictionary of neighbourhood_id: list of Prosumers objects
         """
+        self.prosumers = prosumers
         self.neighbourhoods = neighbourhoods
         self.hour = 0
         
@@ -19,8 +20,9 @@ class BalancingProcess:
                 prosumer.self_balance(self.date, self.hour)
 
     def step2_local_market(self , energy_chain):
-        for neighbourhood , prosumers_in_neighbourhood in self.neighbourhoods.items():
-            local_prosumers = prosumers_in_neighbourhood
+        # for neighbourhood , prosumers_in_neighbourhood in self.neighbourhoods.items(): #we want prosumers to exhange energy even outside their neighbourhood
+            # local_prosumers = prosumers_in_neighbourhood
+            local_prosumers = self.prosumers
             # Separate buyers and sellers
             buyers = [p for p in local_prosumers if p.imbalance > 0]
             sellers = [p for p in local_prosumers if p.imbalance < 0]
@@ -51,12 +53,12 @@ class BalancingProcess:
                     
                     # Execute Trade
                     # Update Buyer
-                    buyer.imbalance -= amount # Reduces deficit
-                    buyer.money_balance -= amount * trade_price
+                    buyer.imbalance = buyer.imbalance -  amount # Reduces deficit
+                    buyer.money_balance = ( buyer.money_balance - (amount * trade_price) ) * buyer.bonus
                     
                     # Update Seller
-                    seller.imbalance += amount # Reduces surplus (moves towards 0)
-                    seller.money_balance += amount * trade_price
+                    seller.imbalance = seller.imbalance + amount # Reduces surplus (moves towards 0)
+                    seller.money_balance = ( seller.money_balance + (amount * trade_price) ) * (1 - seller.bonus)
                     
                     # Record Transaction , here we need the Blockchain part
                     transaction = {
@@ -75,9 +77,9 @@ class BalancingProcess:
                     energy_chain.add_transaction(tx)
 
                     # Move to next if fully satisfied/depleted
-                    if abs(buyer.imbalance) == 0:
+                    if abs(buyer.imbalance) < 1e-5: #created an epsilon to avoid floating point issues, once it went infinite loop here
                         b_idx += 1
-                    if abs(seller.imbalance) == 0:
+                    if abs(seller.imbalance) < 1e-5:
                         s_idx += 1
                         
                 else:
@@ -98,7 +100,7 @@ class BalancingProcess:
             for p in prosumers_in_neighbourhood:
                 
                 # Skip if already balanced (allowing for small floating point error)
-                if abs(p.imbalance) == 0:
+                if abs(p.imbalance) < 1e-5:
                     continue
 
                 transaction = None
@@ -108,7 +110,7 @@ class BalancingProcess:
                     amount_needed = p.imbalance
                     
                     # Buying from grid is expensive: Price * (1 + margin)
-                    grid_price = current_market_price * (1 + margin)
+                    grid_price = current_market_price * (1 + margin) * p.penalty
                     cost = amount_needed * grid_price
                     
                     # Execute

@@ -46,7 +46,7 @@ def run_simulation():
     print("Generating prosumer community")
     prosumers, neighbourhoods = generate_community(NUM_PROSUMERS, NUM_NEIGHBOURHOODS, NEIGHBOURHOOD_POOL, PV_NUMBER_RANGE, PV_CAPACITY, BATTERY_RANGE, LOSSES, pv_model_path)
 
-    balancing = BalancingProcess(neighbourhoods) # take just the neighbourhoods dictionary that already contains the Prosumers
+    balancing = BalancingProcess(prosumers , neighbourhoods) #take both of them so that in step2 Prosumers can exchange with others outised their neighbourhoods
     regulator = Regulator(objective="Maximize_P2P")
     energy_chain = Blockchain(difficulty=DIFFICULTY)
     miners_names = [f"Miner_Node_{i}" for i in range(1, NUM_MINERS + 1)]
@@ -56,6 +56,10 @@ def run_simulation():
     print(f"Simulating for {HOURS} hours on {DATE_STRING}")
     for hour in range(HOURS):
         print(f"\n--- Hour {hour} ---")
+
+        #--- REGULATOR
+
+        regulator.apply_regulations(prosumers, hour)
 
         #--- BALANCING
 
@@ -75,9 +79,6 @@ def run_simulation():
         print("- Step 3: grid integration")
         balancing.step3_grid_interaction(current_market_price=current_market_price, energy_chain=energy_chain)
 
-        #--- REGULATOR
-
-        # regulator.apply_regulations(prosumers, hour)
 
         #--- BLOCKCHAIN
 
