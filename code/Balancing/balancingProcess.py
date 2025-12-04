@@ -9,13 +9,14 @@ class BalancingProcess:
         self.neighbourhoods = neighbourhoods
         self.hour = 0
         
-    def set_hour(self, hour):
+    def set_date_and_hour(self, date, hour):
+        self.date = date
         self.hour = hour 
 
     def step1_self_balancing(self):
         for neighbourhood , prosumers_in_neighbourhood in self.neighbourhoods.items():
             for prosumer in prosumers_in_neighbourhood:
-                prosumer.self_balance(self.hour)
+                prosumer.self_balance(self.date, self.hour)
 
     def step2_local_market(self , energy_chain):
         for neighbourhood , prosumers_in_neighbourhood in self.neighbourhoods.items():
@@ -61,7 +62,7 @@ class BalancingProcess:
                     transaction = {
                         "sender": seller.id,
                         "receiver": buyer.id,
-                        "amount": amount,
+                        "amount": float(amount),
                         "price_per_kWh": trade_price,
                         "type": "P2P",
                         "hour": self.hour
@@ -117,7 +118,7 @@ class BalancingProcess:
                     transaction = {
                         "sender": "Aggregator",
                         "receiver": p.id,
-                        "amount": amount_needed,
+                        "amount": float(amount_needed),
                         "price_per_kWh": grid_price,
                         "type": "GRID_buy",
                         "hour": self.hour
@@ -138,7 +139,7 @@ class BalancingProcess:
                     transaction = {
                         "sender": p.id,
                         "receiver": "Aggregator",
-                        "amount": amount_sold,
+                        "amount": float(amount_sold),
                         "price_per_kWh": grid_price,
                         "type": "GRID_sell",
                         "hour": self.hour
