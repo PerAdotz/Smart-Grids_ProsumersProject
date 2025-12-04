@@ -16,6 +16,16 @@ class Regulator:
         grid_10 = grid_penalty_policy["10"]
         
         for p in prosumers:
+            # Update counters based on transactions from the hour just concluded
+            # This way, bonuses/penalties apply to the NEXT hour
+            hourly_transactions = p.transactions.get(current_hour, [])
+            p2p_activity = any(t['type'] == 'P2P' for t in hourly_transactions)
+            grid_activity = any('GRID_buy' in t['type'] for t in hourly_transactions)
+            
+            if p2p_activity:
+                p.p2p_exchanges += 1
+            if grid_activity:
+                p.agg_exchanges += 1
             # 1. Reset base (neutral) values at the beginning of the check
             # If the prosumer does nothing special, it resets to 1.0
             p.bonus = 1.0
@@ -37,13 +47,4 @@ class Regulator:
             elif p.agg_exchanges >= 5:
                 p.penalty = grid_5 # You pay 5% more
             
-            # Update counters based on transactions from the hour just concluded
-            # This way, bonuses/penalties apply to the NEXT hour
-            hourly_transactions = p.transactions.get(current_hour, [])
-            p2p_activity = any(t['type'] == 'P2P' for t in hourly_transactions)
-            grid_activity = any('GRID_buy' in t['type'] for t in hourly_transactions)
             
-            if p2p_activity:
-                p.p2p_exchanges += 1
-            if grid_activity:
-                p.agg_exchanges += 1
