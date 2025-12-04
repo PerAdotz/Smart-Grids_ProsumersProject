@@ -1,38 +1,49 @@
 class Regulator:
-    # it' just a mock class for now doeant't do anything meaningful
-    def __init__(self, objective="Maximize_P2P"):
-        self.objective = objective
-        self.history_log = []
 
-    def apply_regulations(self, prosumers, current_hour):
+    def apply_regulations(self, prosumers, current_hour , p2p_bonus_policy, grid_penalty_policy):
+        """
+        Analyzes behavior and assigns multipliers (Bonus/Penalty)
+        for the next market round. Goal is incevintivize P2P trading
+        and disincentivize grid reliance.
+        """
         print(f"  [Regulator] Auditing Hour {current_hour}...")
-        
+
+        p2p_1 = p2p_bonus_policy["1"]
+        p2p_5 = p2p_bonus_policy["5"]
+        p2p_10 = p2p_bonus_policy["10"]
+
+        grid_5 = grid_penalty_policy["5"]
+        grid_10 = grid_penalty_policy["10"]
         
         for p in prosumers:
-            for tx in p.transactions[current_hour]:
-                # Se la transazione non è di questa ora, ignorala
-                if tx['hour'] != current_hour:
-                    continue
-
-                if tx['type'] == 'P2P':
-                    if p.p2p_exchanges < 5:  # limit bonuses to first 5 P2P exchanges
-                        p.bonus = 1.02 # 2% bonus for P2P trading, can gain a bit more when selling to the grid
-                    elif p.p2p_exchanges > 5 and p.p2p_exchanges < 10:
-                        p.bonus = 1.05 # 5% bonus for P2P trading, after 5 exchanges
-                    elif p.p2p_exchanges >= 10:
-                        p.bonus = 1.10 # 10% bonus for P2P trading, after 10 exchanges
-                    p.p2p_exchanges += 1
-                    
-                elif tx['type'] == 'GRID_buy': # penalize only grid buys bc we do just one loop of P2P then grid interaction
-                    if current_hour > 18 or current_hour < 6:
-                        p.penalty = 1.10 # 10% penalty for grid buys during peak hours (6 PM to 6 AM)
-                    else:
-                        if p.agg_exchanges < 5:
-                            p.penalty = 1.02 # 2% penalty for grid buys during off-peak hours
-                        elif p.agg_exchanges >=5 and p.agg_exchanges <10:   
-                            p.penalty = 1.05 # 5% penalty for grid buys during off-peak hours
-                        elif p.agg_exchanges >=10:
-                            p.penalty = 1.07 # 7% penalty for grid buys during off-peak hours
-                    p.agg_exchanges += 1
-                        
-
+            # 1. Reset base (neutral) values at the beginning of the check
+            # If the prosumer does nothing special, it resets to 1.0
+            p.bonus = 1.0
+            p.penalty = 1.0
+            
+            # --- BONUS CALCULATION (P2P) ---
+            # If you are a good citizen engaging in P2P trading, you get a price advantage
+            if p.p2p_exchanges >= 10:
+                p.bonus = p2p_10  # 10% advantage (discount if buying, extra profit if selling)
+            elif p.p2p_exchanges >= 5:
+                p.bonus = p2p_5 # 5% advantage
+            elif p.p2p_exchanges >= 1:
+                p.bonus = p2p_1 # 2% advantage
+            
+            # --- PENALTY CALCULATION (Grid) ---
+            # If you abuse the aggregator, a worse tariff is applied
+            if p.agg_exchanges >= 10:
+                p.penalty = grid_10  # You pay 10% more to the grid
+            elif p.agg_exchanges >= 5:
+                p.penalty = grid_5 # You pay 5% more
+            
+            # Update counters based on transactions from the hour just concluded
+            # This way, bonuses/penalties apply to the NEXT hour
+            hourly_transactions = p.transactions.get(current_hour, [])
+            p2p_activity = any(t['type'] == 'P2P' for t in hourly_transactions)
+            grid_activity = any('GRID_buy' in t['type'] for t in hourly_transactions)
+            
+            if p2p_activity:
+                p.p2p_exchanges += 1
+            if grid_activity:
+                p.agg_exchanges += 1

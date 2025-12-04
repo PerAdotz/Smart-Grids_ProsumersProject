@@ -33,6 +33,17 @@ PV_CAPACITY = 0.25 # PV pannel capacity in kW
 BATTERY_RANGE = [0, 5, 10] # Battery capacity in kW
 LOSSES = 14 # Sum of PV system losses in percent
 
+P2P_BONUS_POLICY = {
+    '1': 1.02,   # 2% bonus for at least 1 P2P exchange
+    '5': 1.05,   # 5% bonus for at least 5 P2P exchanges
+    '10': 1.10   # 10% bonus for at least 10 P2P exchanges
+}
+
+GRID_PENALTY_POLICY = {
+    '5': 1.05,   # 5% penalty for at least 5 grid exchanges
+    '10': 1.10   # 10% penalty for at least 10 grid exchanges
+}
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 pv_model_path = os.path.join(BASE_DIR, "PvForecast", "pv_predictor_xgb.joblib")
 
@@ -47,7 +58,7 @@ def run_simulation():
     prosumers, neighbourhoods = generate_community(NUM_PROSUMERS, NUM_NEIGHBOURHOODS, NEIGHBOURHOOD_POOL, PV_NUMBER_RANGE, PV_CAPACITY, BATTERY_RANGE, LOSSES, pv_model_path)
 
     balancing = BalancingProcess(prosumers , neighbourhoods) #take both of them so that in step2 Prosumers can exchange with others outised their neighbourhoods
-    regulator = Regulator(objective="Maximize_P2P")
+    regulator = Regulator()
     energy_chain = Blockchain(difficulty=DIFFICULTY)
     miners_names = [f"Miner_Node_{i}" for i in range(1, NUM_MINERS + 1)]
 
@@ -59,7 +70,7 @@ def run_simulation():
 
         #--- REGULATOR
 
-        regulator.apply_regulations(prosumers, hour)
+        regulator.apply_regulations(prosumers, hour , P2P_BONUS_POLICY, GRID_PENALTY_POLICY)
 
         #--- BALANCING
 

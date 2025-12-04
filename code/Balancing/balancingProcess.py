@@ -2,10 +2,6 @@ from Blockchain.blockchain_v2 import Transaction
 
 class BalancingProcess:
     def __init__(self, prosumers , neighbourhoods):
-        """
-        Manages the three-step balancing for all prosumers
-        neighbourhoods: dictionary of neighbourhood_id: list of Prosumers objects
-        """
         self.prosumers = prosumers
         self.neighbourhoods = neighbourhoods
         self.hour = 0
@@ -20,102 +16,91 @@ class BalancingProcess:
                 prosumer.self_balance(self.date, self.hour)
 
     def step2_local_market(self , energy_chain):
-        # for neighbourhood , prosumers_in_neighbourhood in self.neighbourhoods.items(): #we want prosumers to exhange energy even outside their neighbourhood
-            # local_prosumers = prosumers_in_neighbourhood
-            local_prosumers = self.prosumers
-            # Separate buyers and sellers
-            buyers = [p for p in local_prosumers if p.imbalance > 0]
-            sellers = [p for p in local_prosumers if p.imbalance < 0]
-            
-            # Sellers: Sort by Price ASC (Cheapest first)
-            sellers.sort(key=lambda p: p.trading_price)
-            
-            # Buyers: Sort by Price DESC (Highest willingness to pay first)
-            buyers.sort(key=lambda p: p.trading_price, reverse=True)
+        # Usiamo tutti i prosumer insieme per massimizzare la liquidità
+        local_prosumers = self.prosumers
+        
+        buyers = [p for p in local_prosumers if p.imbalance > 0]
+        sellers = [p for p in local_prosumers if p.imbalance < 0]
+        
+        # Sellers: Cheapest first
+        sellers.sort(key=lambda p: p.trading_price)
+        # Buyers: Highest willingness to pay first
+        buyers.sort(key=lambda p: p.trading_price, reverse=True)
 
-            # Match best buyer with best seller
-            b_idx = 0
-            s_idx = 0
+        b_idx = 0
+        s_idx = 0
+        
+        while b_idx < len(buyers) and s_idx < len(sellers):
+            buyer = buyers[b_idx]
+            seller = sellers[s_idx]
             
-            while b_idx < len(buyers) and s_idx < len(sellers):
-                buyer = buyers[b_idx]
-                seller = sellers[s_idx]
+            # Check economic viability
+            if buyer.trading_price >= seller.trading_price:
                 
-                # Check if trade is economically viable (Buyer willing to pay >= Seller asking)
-                # Note: You can disable this check if the rule is "always trade available P2P energy"
-                if buyer.trading_price >= seller.trading_price:
-                    
-                    # Determine trade amount (min of Buyer Need vs Seller Surplus)
-                    amount = min(abs(buyer.imbalance), abs(seller.imbalance))
-                    
-                    # Determine trade price (e.g., average or pay-as-bid)
-                    trade_price = (buyer.trading_price + seller.trading_price) / 2
-                    
-                    # Execute Trade
-                    # Update Buyer
-                    buyer.imbalance = buyer.imbalance -  amount # Reduces deficit
-                    buyer.money_balance = ( buyer.money_balance - (amount * trade_price) ) * buyer.bonus
-                    
-                    # Update Seller
-                    seller.imbalance = seller.imbalance + amount # Reduces surplus (moves towards 0)
-                    seller.money_balance = ( seller.money_balance + (amount * trade_price) ) * (1 - seller.bonus)
-                    
-                    # Record Transaction , here we need the Blockchain part
-                    transaction = {
-                        "sender": seller.id,
-                        "receiver": buyer.id,
-                        "amount": float(amount),
-                        "price_per_kWh": trade_price,
-                        "type": "P2P",
-                        "hour": self.hour
-                    }
-                    buyer.transactions[self.hour].append(transaction)
-                    seller.transactions[self.hour].append(transaction)
-
-                    tx = Transaction(sender=transaction["sender"], receiver=transaction["receiver"], 
-                                     amount=transaction["amount"], price=transaction["price_per_kWh"], step=self.hour)
-                    energy_chain.add_transaction(tx)
-
-                    # Move to next if fully satisfied/depleted
-                    if abs(buyer.imbalance) < 1e-5: #created an epsilon to avoid floating point issues, once it went infinite loop here
-                        b_idx += 1
-                    if abs(seller.imbalance) < 1e-5:
-                        s_idx += 1
-                        
+                amount = min(abs(buyer.imbalance), abs(seller.imbalance))
+                trade_price = (buyer.trading_price + seller.trading_price) / 2
+                
+                transaction_value = amount * trade_price
+                
+                # Buyer: Il bonus reduce the cost
+                # ex :  if bonus = 1.02, pay 2% less.
+                if buyer.bonus > 0:
+                    cost_for_buyer = transaction_value / buyer.bonus
                 else:
-                    # If best buyer won't pay best seller's price, no more trades possible
-                    break
+                    cost_for_buyer = transaction_value
+                buyer.imbalance -= amount
+                buyer.money_balance -= cost_for_buyer
+                
+                # Seller: Il bonus increases the revenue
+                # if bonus = 1.02, earns 2% more.
+                revenue_for_seller = transaction_value * seller.bonus
+                seller.imbalance += amount
+                seller.money_balance += revenue_for_seller
+                
+                # Record Transaction
+                transaction = {
+                    "sender": seller.id,
+                    "receiver": buyer.id,
+                    "amount": float(amount),
+                    "price_per_kWh": trade_price,
+                    "type": "P2P",
+                    "hour": self.hour
+                }
+                buyer.transactions[self.hour].append(transaction)
+                seller.transactions[self.hour].append(transaction)
+
+                tx = Transaction(sender=transaction["sender"], receiver=transaction["receiver"], 
+                                 amount=transaction["amount"], price=transaction["price_per_kWh"], step=self.hour)
+                energy_chain.add_transaction(tx)
+
+                if abs(buyer.imbalance) < 1e-5:
+                    b_idx += 1
+                if abs(seller.imbalance) < 1e-5:
+                    s_idx += 1
+                    
+            else:
+                break
 
     def step3_grid_interaction(self, current_market_price , energy_chain, margin=0.05):
-        """
-        Step 3: Local Market / Grid Interaction (Aggregator)
-        Any remaining imbalance is cleared with the aggregator.
-        
-        current_market_price: The D-1 price for this hour.
-        energy_chain: The blockchain instance to record transactions.
-        margin: The percentage fee/penalty for using the grid (default 5%).
-        """
-        # Iterate through all prosumers in all neighbourhoods
         for neighbourhood_id, prosumers_in_neighbourhood in self.neighbourhoods.items():
             for p in prosumers_in_neighbourhood:
                 
-                # Skip if already balanced (allowing for small floating point error)
                 if abs(p.imbalance) < 1e-5:
                     continue
 
                 transaction = None
                 
-                # --- CASE 1: Prosumer still needs energy (Deficit / Buyer) ---
-                if p.imbalance > 0:
+
+                if p.imbalance > 0: # Buyer (Deficit)
                     amount_needed = p.imbalance
                     
-                    # Buying from grid is expensive: Price * (1 + margin)
+                    # Penalità aumenta il prezzo di acquisto
+                    # Esempio: penalty 1.10 -> Prezzo aumenta del 10%
                     grid_price = current_market_price * (1 + margin) * p.penalty
                     cost = amount_needed * grid_price
                     
-                    # Execute
                     p.money_balance -= cost
-                    p.imbalance = 0  # Imbalance is resolved
+                    p.imbalance = 0
                     
                     transaction = {
                         "sender": "Aggregator",
@@ -126,17 +111,17 @@ class BalancingProcess:
                         "hour": self.hour
                     }
 
-                # --- CASE 2: Prosumer has extra energy (Surplus / Seller) ---
-                elif p.imbalance < 0:
+                elif p.imbalance < 0: # Seller (Surplus)
                     amount_sold = abs(p.imbalance)
                     
-                    # Selling to grid pays less: Price * (1 - margin)
+                    # Qui la penalità non si applica solitamente alla vendita, 
+                    # o se vuoi penalizzare la vendita, dovresti DIVIDERE per il fattore.
+                    # Manteniamo la logica standard: vendo a prezzo base.
                     grid_price = current_market_price * (1 - margin)
                     earnings = amount_sold * grid_price
                     
-                    # Execute
                     p.money_balance += earnings
-                    p.imbalance = 0  # Imbalance is resolved
+                    p.imbalance = 0
                     
                     transaction = {
                         "sender": p.id,
@@ -147,7 +132,6 @@ class BalancingProcess:
                         "hour": self.hour
                     }
 
-                # Record transaction
                 if transaction:
                     p.transactions[self.hour].append(transaction)
                     tx = Transaction(sender=transaction["sender"], receiver=transaction["receiver"], 
