@@ -5,75 +5,54 @@ from Balancing.regulator import Regulator
 from Community.community import generate_community
 from PriceForecast.priceForecaster import PriceForecaster
 import os
+import json
 
-# --- Configuration Parameters ---
-NUM_PROSUMERS = 100
-NUM_NEIGHBOURHOODS = 10
-HOURS = 24
-DATE_STRING = '2025-10-31' # latest point in the price dataset
-DIFFICULTY = 3
-NUM_MINERS = 10
-
-# Geographical bounding boxes for simulated neighbourhoods
-NEIGHBOURHOOD_POOL = {
-    'Centro': [45.065, 45.080, 7.675, 7.690],
-    'San_Salvario': [45.050, 45.065, 7.675, 7.695],
-    'Crocetta': [45.060, 45.075, 7.645, 7.660],
-    'Aurora': [45.088, 45.100, 7.675, 7.695],
-    'Vanchiglia': [45.068, 45.083, 7.690, 7.710],
-    'Lingotto': [45.015, 45.035, 7.640, 7.665],
-    'Santa_Rita': [45.040, 45.055, 7.630, 7.655],
-    'San_Donato': [45.080, 45.095, 7.640, 7.658],
-    'Cit_Turin': [45.070, 45.085, 7.660, 7.675],
-    'Barriera_di_Milano': [45.100, 45.115, 7.665, 7.685],
-}
-
-# Prosumer physical parameters
-PV_NUMBER_RANGE = (0, 20) # Range for number of PV panels
-PV_CAPACITY = 0.25 # Single PV panel capacity in kW
-BATTERY_RANGE = [0, 5, 10] # Available battery capacities in kWh
-LOSSES = 14 # Sum of PV system losses in percent
-
-# Policy definitions
-P2P_BONUS_POLICY = {
-    '1': 1.02, # 2% bonus for at least 1 P2P exchange
-    '5': 1.05, # 5% bonus for at least 5 P2P exchanges
-    '10': 1.10 # 10% bonus for at least 10 P2P exchanges
-}
-GRID_PENALTY_POLICY = {
-    '5': 1.05, # 5% penalty for at least 5 grid exchanges
-    '10': 1.10 # 10% penalty for at least 10 grid exchanges
-}
-
-# Determine the path for the trained PV model
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PV_DIR = "PvForecast"
-pv_model_path = os.path.join(BASE_DIR, PV_DIR, "pv_predictor_xgb.joblib")
-
-# Define the directory containing the datasets for the price forecasting model
-DATA_DIR = 'Data_ElectricityMarketPrices'
-file_paths = {
-    'df_2021': os.path.join(BASE_DIR, DATA_DIR, 'Anno 2021.xlsx'),
-    'df_2022': os.path.join(BASE_DIR, DATA_DIR, 'Anno 2022.xlsx'),
-    'df_2023': os.path.join(BASE_DIR, DATA_DIR, 'Anno 2023.xlsx'),
-    'df_2024': os.path.join(BASE_DIR, DATA_DIR, 'Anno 2024.xlsx'),
-    'df_2025': os.path.join(BASE_DIR, DATA_DIR, 'Anno 2025_10.xlsx'),
-}
-
-# Define the path for the trained price forecating model
-PRICE_DIR = "PriceForecast"
-price_model_path = os.path.join(BASE_DIR, PRICE_DIR, "price_forecaster_multi.joblib")
-
-# Loockback for the price forecasting model (number of hours)
-LOOKBACK = 24
-
-def run_simulation():
+def run_simulation(config):
     """
     Main function to run the hourly energy trading simulation over a single day.
     Initializes all agents, processes energy balancing and trading steps, 
     manages the blockchain, and applies regulatory policies hourly.
     """
-    # Initialize simulation date 
+    # --- load configuration parameters ---
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    HOURS = config["hours"]
+
+    NUM_PROSUMERS = config["community"]["num_prosumers"]
+    NUM_NEIGHBOURHOODS = config["community"]["num_neighbourhoods"]
+    PV_NUMBER_RANGE = tuple(config["community"]["pv_number_range"])
+    PV_CAPACITY = config["community"]["pv_capacity"]
+    BATTERY_RANGE = config["community"]["battery_capacity_range"]
+    LOSSES = config["community"]["pv_losses"]
+    NEIGHBOURHOOD_POOL = config["community"]["neighbourhoods_pool"]
+    PV_DIR = "PvForecast"
+    pv_model_path = os.path.join(BASE_DIR, PV_DIR, "pv_predictor_xgb.joblib")
+
+    P2P_BONUS_POLICY = config["regulator"]["p2p_bonus_policy"]
+    GRID_PENALTY_POLICY = config["regulator"]["grid_penalty_policy"]
+
+
+    LOOKBACK = config["price_forecaster"]["lookback_hours"]
+    DATE_STRING = '2025-10-31' # latest point in the price dataset
+
+    # Define the directory containing the datasets for the price forecasting model
+    DATA_DIR = 'Data_ElectricityMarketPrices'
+    file_paths = {
+        'df_2021': os.path.join(BASE_DIR, DATA_DIR, 'Anno 2021.xlsx'),
+        'df_2022': os.path.join(BASE_DIR, DATA_DIR, 'Anno 2022.xlsx'),
+        'df_2023': os.path.join(BASE_DIR, DATA_DIR, 'Anno 2023.xlsx'),
+        'df_2024': os.path.join(BASE_DIR, DATA_DIR, 'Anno 2024.xlsx'),
+        'df_2025': os.path.join(BASE_DIR, DATA_DIR, 'Anno 2025_10.xlsx'),
+    }
+    # Define the path for the trained price forecating model
+    PRICE_DIR = "PriceForecast"
+    price_model_path = os.path.join(BASE_DIR, PRICE_DIR, "price_forecaster_multi.joblib")
+    PRICE_TYPE = config["price_forecaster"]["price_type"]
+
+    DIFFICULTY = config["blockchain"]["difficulty"]
+    NUM_MINERS = config["blockchain"]["number_of_miners"]
+
+
+    # Initialize simulation date
     date = pd.to_datetime(DATE_STRING)
     date_int = int(DATE_STRING.replace('-', ''))
 
@@ -117,11 +96,9 @@ def run_simulation():
         # Base market price for grid transactions and P2P bidding reference
         # Use the prediction from the PriceForecaster instance
         current_market_price = price_forecaster.predict_next_hour(date_int, hour)
-        current_PUN = current_market_price["PUN"]
-        current_NORD = current_market_price["NORD"]
+        current_market_price = current_market_price[PRICE_TYPE]
         print(f"- Current Market Price (Predicted):")
-        print(f"PUN: {current_PUN:.4f} €/kWh")
-        print(f"NORD: {current_NORD:.4f} €/kWh")
+        print(f"Price {PRICE_TYPE}: {current_market_price:.4f} €/kWh")
         
         # Step 1: Self-Balancing (Generation, Load, Battery)
         print("- Step 1: self balancing")
@@ -130,7 +107,7 @@ def run_simulation():
         # Prosumers set their trading prices based on their imbalance and the reference market price
         for prosumer in prosumers:
             # Use the regional price (NORD)
-            prosumer.calculate_trading_price(current_market_price=current_NORD)
+            prosumer.calculate_trading_price(current_market_price=current_market_price)
 
         # Step 2: Self-Organized Trading (P2P Exchange)
         print("- Step 2: self-organized trading")
@@ -138,8 +115,7 @@ def run_simulation():
 
         # Step 3: Local Market Clearing (Grid Exchange)
         print("- Step 3: local market")
-        # Use the national price (PUN)
-        balancing.step3_local_market(current_market_price=current_PUN, energy_chain=energy_chain)
+        balancing.step3_local_market(current_market_price=current_market_price, energy_chain=energy_chain)
 
         # --- BLOCKCHAIN MANAGEMENT ---
         
@@ -201,4 +177,6 @@ def run_simulation():
     print("\nSimulation complete. Prosumer stats saved to 'prosumer_stats.csv'.")
 
 if __name__ == "__main__":
-    run_simulation()
+    with open("code/config.json", "r") as config_file:
+        config = json.load(config_file)
+    run_simulation(config)

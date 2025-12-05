@@ -1,0 +1,42 @@
+{
+    "hours": 24,
+    "community": {
+        "num_prosumers": 100,
+        "pv_number_range": [0,20],
+        "battery_capacity_range": [0 ,5,10],
+        "pv_losses": 14,
+        "num_neighbourhoods": 5,
+        "pv_capacity": 0.25,
+        "neighbourhoods_pool" :{
+                "Centro": [45.065, 45.080, 7.675, 7.690],
+                "San_Salvario": [45.050, 45.065, 7.675, 7.695],
+                "Crocetta": [45.060, 45.075, 7.645, 7.660],
+                "Aurora": [45.088, 45.100, 7.675, 7.695],
+                "Vanchiglia": [45.068, 45.083, 7.690, 7.710],
+                "Lingotto": [45.015, 45.035, 7.640, 7.665],
+                "Santa_Rita": [45.040, 45.055, 7.630, 7.655],
+                "San_Donato": [45.080, 45.095, 7.640, 7.658],
+                "Cit_Turin": [45.070, 45.085, 7.660, 7.675],
+                "Barriera_di_Milano": [45.100, 45.115, 7.665, 7.685]
+        }
+    },
+    "regulator": {
+        "p2p_bonus_policy": {
+            "1": 1.02, 
+            "5": 1.05,
+            "10": 1.10 
+        },
+        "grid_penalty_policy": {
+                "5": 1.05,
+                "10": 1.10
+        } 
+    } ,
+    "price_forecaster": {
+        "lookback_hours": 24,
+        "price_type": "PUN"
+    },
+    "blockchain": {
+        "difficulty": 3,
+        "number_of_miners": 10
+    }
+}
