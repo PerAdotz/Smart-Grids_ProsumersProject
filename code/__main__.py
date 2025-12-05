@@ -3,13 +3,14 @@ import pandas as pd
 from Blockchain.blockchain_v2 import Blockchain , Miner
 from Balancing.regulator import Regulator
 from Community.community import generate_community
+from PriceForecast.priceForecaster import PriceForecaster
 import os
 
 # --- Configuration Parameters ---
 NUM_PROSUMERS = 100
 NUM_NEIGHBOURHOODS = 10
 HOURS = 24
-DATE_STRING = '2025-12-04'
+DATE_STRING = '2025-10-31' # latest point in the price dataset
 DIFFICULTY = 3
 NUM_MINERS = 10
 
@@ -46,7 +47,25 @@ GRID_PENALTY_POLICY = {
 
 # Determine the path for the trained PV model
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-pv_model_path = os.path.join(BASE_DIR, "PvForecast", "pv_predictor_xgb.joblib")
+PV_DIR = "PvForecast"
+pv_model_path = os.path.join(BASE_DIR, PV_DIR, "pv_predictor_xgb.joblib")
+
+# Define the directory containing the datasets for the price forecasting model
+DATA_DIR = 'Data_ElectricityMarketPrices'
+file_paths = {
+    'df_2021': os.path.join(BASE_DIR, DATA_DIR, 'Anno 2021.xlsx'),
+    'df_2022': os.path.join(BASE_DIR, DATA_DIR, 'Anno 2022.xlsx'),
+    'df_2023': os.path.join(BASE_DIR, DATA_DIR, 'Anno 2023.xlsx'),
+    'df_2024': os.path.join(BASE_DIR, DATA_DIR, 'Anno 2024.xlsx'),
+    'df_2025': os.path.join(BASE_DIR, DATA_DIR, 'Anno 2025_10.xlsx'),
+}
+
+# Define the path for the trained price forecating model
+PRICE_DIR = "PriceForecast"
+price_model_path = os.path.join(BASE_DIR, PRICE_DIR, "price_forecaster_multi.joblib")
+
+# Loockback for the price forecasting model (number of hours)
+LOOKBACK = 24
 
 def run_simulation():
     """
@@ -56,6 +75,7 @@ def run_simulation():
     """
     # Initialize simulation date 
     date = pd.to_datetime(DATE_STRING)
+    date_int = int(DATE_STRING.replace('-', ''))
 
     # 1. Generate the community of prosumers and neighbourhoods
     print("Generating prosumer community")
@@ -66,18 +86,25 @@ def run_simulation():
     )
 
     # 2. Initialize core simulation modules
-    # BalancingProcess manages the hourly energy exchanges
+    # - Price Forecaster for dynamic market prices
+    price_forecaster = PriceForecaster(file_paths, lookback=LOOKBACK)
+    price_forecaster.load_model(price_model_path)
+
+    # - BalancingProcess manages the hourly energy exchanges
     balancing = BalancingProcess(prosumers, neighbourhoods)
-    # Regulator applies incentive policies
+
+    # - Regulator applies incentive policies
     regulator = Regulator()
-    # Blockchain tracks transactions
+
+    # - Blockchain tracks transactions
     energy_chain = Blockchain(difficulty=DIFFICULTY)
 
-    # Setup miners for the Proof-of-Work process
+    # 3. Setup miners for the Proof-of-Work process
     miners_names = [f"Miner_Node_{i}" for i in range(1, NUM_MINERS + 1)]
 
     stats_list = [] # List to accumulate hourly statistics
 
+    # 4. Simulate
     print(f"Simulating for {HOURS} hours on {DATE_STRING}")
     for hour in range(HOURS):
         print(f"\n--- Hour {hour} ---")
@@ -88,7 +115,13 @@ def run_simulation():
         balancing.set_date_and_hour(date, hour)
 
         # Base market price for grid transactions and P2P bidding reference
-        current_market_price = 0.2  # assuming a fixed market price for simplicity, but then will be the output of Price Forecasting module €/kWh 
+        # Use the prediction from the PriceForecaster instance
+        current_market_price = price_forecaster.predict_next_hour(date_int, hour)
+        current_PUN = current_market_price["PUN"]
+        current_NORD = current_market_price["NORD"]
+        print(f"- Current Market Price (Predicted):")
+        print(f"PUN: {current_PUN:.4f} €/kWh")
+        print(f"NORD: {current_NORD:.4f} €/kWh")
         
         # Step 1: Self-Balancing (Generation, Load, Battery)
         print("- Step 1: self balancing")
@@ -96,7 +129,8 @@ def run_simulation():
 
         # Prosumers set their trading prices based on their imbalance and the reference market price
         for prosumer in prosumers:
-            prosumer.calculate_trading_price(current_market_price=current_market_price)
+            # Use the regional price (NORD)
+            prosumer.calculate_trading_price(current_market_price=current_NORD)
 
         # Step 2: Self-Organized Trading (P2P Exchange)
         print("- Step 2: self-organized trading")
@@ -104,7 +138,8 @@ def run_simulation():
 
         # Step 3: Local Market Clearing (Grid Exchange)
         print("- Step 3: local market")
-        balancing.step3_local_market(current_market_price=current_market_price, energy_chain=energy_chain)
+        # Use the national price (PUN)
+        balancing.step3_local_market(current_market_price=current_PUN, energy_chain=energy_chain)
 
         # --- BLOCKCHAIN MANAGEMENT ---
         
