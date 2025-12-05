@@ -335,16 +335,16 @@ if __name__ == "__main__":
 
     # Train
     if training:
-        # Load dataset
+        # Load the dataset
         dataset = pd.read_csv(imput_data_path)
 
         # Split the dataset
         model.split(dataset, TRAIN_RATIO)
 
-        # Train model 
+        # Train the model 
         model.train()
 
-        # Test model and print metrics
+        # Test the model and print metrics
         model.test()
 
         # Plot
@@ -353,12 +353,12 @@ if __name__ == "__main__":
         model.plot_scatter_error()
         model.plot_error_vs_actual()
 
-        # Save model
+        # Save the model
         model.save_model(output_model_path)
     
     # Predict
     else:
-        # Load model
+        # Load the model
         model.load_model(output_model_path)
 
         # Predict for a test prosumer at noon on the 15th of June
