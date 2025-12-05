@@ -6,6 +6,7 @@ from sklearn.multioutput import MultiOutputRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 from math import sqrt
 import os
+import joblib
 
 class PriceForecaster:
     """
@@ -41,7 +42,6 @@ class PriceForecaster:
             pd.DataFrame: The cleaned and concatenated DataFrame.
         """
         dataframes_list = []
-        df_names = list(file_paths.keys())
 
         # 1. File Extraction and Column Standardization
         for name, path in file_paths.items():
@@ -231,7 +231,7 @@ class PriceForecaster:
         print(f"Global RMSE: {overall_rmse:.3f}")
         print(f"Global R2:   {overall_r2:.3f}")
 
-        return model, overall_rmse, overall_r2
+        return overall_rmse, overall_r2
 
     def prepare_latest_features(self, df_hist, lookback=None):
         """
@@ -377,6 +377,47 @@ class PriceForecaster:
             df_hist = pd.concat([df_hist, pd.DataFrame([new_row])], ignore_index=True)
 
         return pd.DataFrame(preds, index=[f"t+{i}" for i in range(1, horizon + 1)])
+
+    def save_model(self, filepath):
+        """
+        Saves the trained MultiOutputRegressor model to a file using joblib 
+        for persistent storage.
+
+        Args:
+            filepath (str): The complete path and filename for saving the model.
+
+        Returns:
+            None: Prints a success or error message.
+        """
+        if self.multi_output_model is None:
+            print("ERROR: Multi-output model is not trained. Cannot save.")
+            return
+
+        try:
+            # Save the model object
+            joblib.dump(self.multi_output_model, filepath)
+            print(f"Model successfully saved to: {filepath}")
+        except Exception as e:
+            print(f"ERROR: Failed to save model: {e}")
+    
+    def load_model(self, filepath):
+        """
+        Loads a trained MultiOutputRegressor model from a file using joblib.
+
+        Args:
+            filepath (str): The complete path and filename of the model file.
+
+        Returns:
+            None: Updates the internal self.multi_output_model attribute. Prints an error message.
+        """
+        try:
+            # Load the model object
+            self.multi_output_model = joblib.load(filepath)
+            print(f"Model successfully loaded from: {filepath}")
+        except FileNotFoundError:
+            print(f"ERROR: Model file not found at: {filepath}")
+        except Exception as e:
+            print(f"ERROR: Failed to load model: {e}")
 
     # --- Plotting Methods ---
 
@@ -567,7 +608,7 @@ if __name__ == "__main__":
     # Get the directory of the 'code' folder (one level up)
     BASE_DIR = os.path.dirname(CURRENT_DIR)
 
-    # Define the directory containing the dataset
+    # Define the directory containing the datasets
     DATA_DIR = 'Data_ElectricityMarketPrices'
         
     file_paths = {
@@ -577,13 +618,16 @@ if __name__ == "__main__":
         'df_2024': os.path.join(BASE_DIR, DATA_DIR, 'Anno 2024.xlsx'),
         'df_2025': os.path.join(BASE_DIR, DATA_DIR, 'Anno 2025_10.xlsx'),
     }
+
+    # Define the path to save the model
+    output_model_path = os.path.join(BASE_DIR, CURRENT_DIR, "price_forecaster_multi.joblib")
     
     # Initialize and load data
     lookback = 24
     forecaster = PriceForecaster(file_paths, lookback=lookback)
     
     # Train Multi-Output Model
-    multi_model, g_rmse, g_r2 = forecaster.train_multi_output_model()
+    g_rmse, g_r2 = forecaster.train_multi_output_model()
     
     print("\n---------------------------------------------------------")
     print(f"Global metrics: RMSE={g_rmse:.3f}, R2={g_r2:.3f}")
@@ -593,6 +637,8 @@ if __name__ == "__main__":
     df_all_raw = forecaster.df_all # The raw clean data
     latest_date = int(df_all_raw["Date"].iloc[-1])
     latest_hour = int(df_all_raw["Hour"].iloc[-1])
+    print(f"Latest point in the dataset: {latest_date} {latest_hour}")
+    # 20251031 0
 
     latest_prices_dict = forecaster.predict_next_hour(
         date_int=latest_date,
@@ -626,3 +672,6 @@ if __name__ == "__main__":
     forecaster.plot_zone_timeseries(zone="NORD")
     forecaster.plot_zone_scatter_error(zone="NORD")
     forecaster.plot_zone_error_vs_price(zone="NORD")
+
+    # Save the model
+    forecaster.save_model(output_model_path)
