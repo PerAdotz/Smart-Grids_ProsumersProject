@@ -28,7 +28,7 @@ class Prosumer:
         self.load_profile = load_profile # list of 24 hour loads [kWh]
         self.battery_capacity = battery_capacity # battery size in kWh
         self.losses = losses
-        self.neighbourhood = neighbourhood # neighbourhood ID
+        self.neighbourhood = neighbourhood # neighbourhood
         self.latitude = latitude
         self.longitude = longitude
 

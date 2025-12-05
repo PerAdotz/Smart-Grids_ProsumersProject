@@ -49,7 +49,7 @@ class BalancingProcess:
                 # Prosumer calculates net load (PV - Load) and uses battery for self-consumption/storage
                 prosumer.self_balance(self.date, self.hour)
 
-    def step2_self_organized_trading(self , energy_chain):
+    def step2_self_organized_trading(self , energy_chain, margin=0.02):
         """
         Conducts Peer-to-Peer (P2P) trading among all prosumers to maximize local energy exchange.
 
@@ -58,6 +58,7 @@ class BalancingProcess:
 
         Args:
             energy_chain (Blockchain): The blockchain instance to record energy transactions.
+            margin (float, optional): The network manager's profit margin applied to the base price. Defaults to 0.01.
 
         Returns:
             None
@@ -92,6 +93,10 @@ class BalancingProcess:
                 trade_price = (buyer.trading_price + seller.trading_price) / 2
                 
                 transaction_value = amount * trade_price
+
+                # If the buyer and the seller are from different neighbourhoods, add the network usage price
+                if buyer.neighbourhood != seller.neighbourhood:
+                    transaction_value = transaction_value * margin
                 
                 # --- Buyer (Deficit) Accounting ---
                 # Buyer's bonus reduces the cost (e.g., bonus=1.02 means 2% discount)
