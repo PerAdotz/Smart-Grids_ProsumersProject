@@ -73,42 +73,47 @@ class PvModel:
         self.model.fit(self.X_train, self.y_train)
         print("Training Complete.")
 
-    def test(self):
+    def get_test_predictions(self):
         """
-        Evaluates the trained model's performance on the test set and visualizes the results.
+        Calculates the actual test values and corresponding predictions.
+        
+        Raises:
+            ValueError: If the model is not trained or test data is missing.
 
         Returns:
-            None: Prints evaluation metrics (MAE, RMSE, R²) and displays a plot.
+            tuple: (pd.Series y_test, np.array y_pred)
         """
         if self.model is None:
-            print("ERROR: Model is not trained. Please run the train method first.")
-            return
-        
+            raise ValueError("Model is not trained. Please run the train method first.")
+        if self.X_test.empty or self.y_test.empty:
+            raise ValueError("Test data is not available. Please run the split method first.")
+            
         # Make predictions on the unseen test set
         y_pred = self.model.predict(self.X_test)
+        return self.y_test, y_pred
 
+    def test(self):
+        """
+        Evaluates the trained model's performance on the test set.
+
+        Returns:
+            None: Prints evaluation metrics (MAE, RMSE, R²).
+        """
+        try:
+            y_test, y_pred = self.get_test_predictions()
+        except ValueError as e:
+            print(f"ERROR: {e}")
+            return
+        
         # Evaluate the predictions
-        mae = mean_absolute_error(self.y_test, y_pred)
-        rmse = np.sqrt(mean_squared_error(self.y_test, y_pred))
-        r2 = r2_score(self.y_test, y_pred)
+        mae = mean_absolute_error(y_test, y_pred)
+        rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+        r2 = r2_score(y_test, y_pred)
 
         print(f"Mean Absolute Error (MAE): {mae:.3f} kW")
         print(f"Root Mean Square Error (RMSE): {rmse:.3f} kW")
         print(f"R-squared (R²): {r2:.4f}")
 
-        # Plot a comparison for visual validation
-        plt.figure(figsize=(14, 6))
-        # Plot the actual values
-        plt.plot(self.y_test.index, self.y_test, label='Actual PV Generation', alpha=0.7)
-        # Plot the predicted values
-        plt.plot(self.y_test.index, y_pred, label='Predicted PV Generation', linestyle='--', color='red')
-        plt.title('Actual vs. Predicted PV Output (Test Set)')
-        plt.xlabel('Timestamp')
-        plt.ylabel('Power (kW)')
-        plt.legend()
-        plt.grid(True)
-        plt.show()
-    
     def save_model(self, filepath):
         """
         Saves the trained XGBoost model to a file using joblib for persistent storage.
@@ -187,18 +192,145 @@ class PvModel:
         # Make prediction
         prediction = self.model.predict(input_data)
         return prediction[0]
+    
+    def save_model(self, filepath):
+        """
+        Saves the trained XGBoost model to a file using joblib for persistent storage.
 
+        Args:
+            filepath (str): The complete path and filename for saving the model.
+
+        Returns:
+            None: Prints a success or error message.
+        """
+        if self.model is None:
+            print("ERROR: Model is not trained. Cannot save.")
+            return
+
+        try:
+            # Save the model object
+            joblib.dump(self.model, filepath)
+            print(f"Model successfully saved to: {filepath}")
+        except Exception as e:
+            print(f"ERROR: Failed to save model: {e}")
+    
+    # --- Plotting Methods ---
+
+    def plot_timeseries(self):
+        """
+        Plots actual vs predicted PV generation over the test set time index.
+        """
+        try:
+            y_test, y_pred = self.get_test_predictions()
+        except ValueError as e:
+            print(f"Plotting Error: {e}")
+            return
+
+        # Plot the actual values
+        plt.figure(figsize=(12, 6))
+        plt.plot(y_test.index, y_test, label='Actual PV Generation', alpha=0.7, linewidth=1.5)
+        
+        # Plot the predicted values
+        plt.plot(y_test.index, y_pred, label='Predicted PV Generation', linestyle='--', color='red', linewidth=1.0)
+        
+        plt.title('Actual vs. Predicted PV Generation (Test Set)')
+        plt.xlabel('Test samples (time order)')
+        plt.ylabel('Power (kW)')
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
+
+    def plot_scatter_error(self):
+        """
+        Plots the predicted PV generation against the actual PV generation, 
+        colored by the magnitude of the absolute prediction error.
+        """
+        try:
+            y_test, y_pred = self.get_test_predictions()
+        except ValueError as e:
+            print(f"Plotting Error: {e}")
+            return
+
+        actual = y_test.values
+        pred = y_pred
+        
+        # Calculate the absolute error
+        errors = np.abs(pred - actual)
+
+        # Plot the predicted and actual prices colored with the error
+        plt.figure(figsize=(10, 8))
+        sc = plt.scatter(
+            actual,
+            pred,
+            c=errors,
+            cmap="coolwarm",
+            s=20,
+            alpha=0.8
+        )
+        plt.colorbar(sc, label="Absolute Prediction Error (kW)")
+
+        # Plot the ideal prediction line (Actual == Predicted)
+        min_val = min(actual.min(), pred.min())
+        max_val = max(actual.max(), pred.max())
+        plt.plot([min_val, max_val], [min_val, max_val], color="black", linewidth=1)
+
+        plt.xlabel("Actual PV Generation (kW)")
+        plt.ylabel("Predicted PV Generation (kW)")
+        plt.title("Actual vs Predicted PV Generation colored by error magnitude (Test set)")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
+
+    def plot_error_vs_actual(self):
+        """
+        Plots the prediction residual error (Predicted - Actual) against the actual PV generation.
+        This helps identify if the model's error is correlated with the magnitude of the target variable.
+        """
+        try:
+            y_test, y_pred = self.get_test_predictions()
+        except ValueError as e:
+            print(f"Plotting Error: {e}")
+            return
+
+        actual = y_test.values
+        pred = y_pred
+
+        # Calculate residual error (Predicted - Actual)
+        errors = pred - actual
+
+        # Plot the residual error
+        plt.figure(figsize=(10, 6))
+        plt.scatter(actual, errors, s=15, alpha=0.7)
+        
+        # Add a zero line for reference
+        plt.axhline(0, color="black", linewidth=1, linestyle='--')
+
+        plt.xlabel("Actual PV Generation (kW)")
+        plt.ylabel("Prediction Error (kW)")
+        plt.title("Error vs Actual Generation (Test Set)")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
+    
 if __name__ == "__main__":
-    training = True
+    training = True # Set to False to skip training and only predict
+    # For training, you need a 'pv_historical_dataset.csv' 
+    # in the same directory containing the required feature columns
 
     TRAIN_RATIO = 0.80
 
+    # Get the directory of the current file (PvForecast)
     CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+    # Get the directory of the 'code' folder (one level up)
     BASE_DIR = os.path.dirname(CURRENT_DIR)
+
+    # Define the paths of the input dataset and the output model
     imput_data_path = os.path.join(BASE_DIR, CURRENT_DIR, "pv_historical_dataset.csv")
     output_model_path = os.path.join(BASE_DIR, CURRENT_DIR, "pv_predictor_xgb.joblib")
 
-    # Initialize model
+    # Initialize the model
     model = PvModel()
 
     # Train
@@ -209,11 +341,17 @@ if __name__ == "__main__":
         # Split the dataset
         model.split(dataset, TRAIN_RATIO)
 
-        # Train model
+        # Train model 
         model.train()
 
-        # Test model
+        # Test model and print metrics
         model.test()
+
+        # Plot
+        print("Displaying plots...")
+        model.plot_timeseries()
+        model.plot_scatter_error()
+        model.plot_error_vs_actual()
 
         # Save model
         model.save_model(output_model_path)
