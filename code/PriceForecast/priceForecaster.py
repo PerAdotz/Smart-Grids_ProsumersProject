@@ -161,9 +161,17 @@ class PriceForecaster:
         targets = self.target_columns
 
         # Create lag features (t-1 to t-lookback) for every target series
-        for col in targets:
-            for i in range(1, lb + 1):
-                df[f"{col}_t-{i}"] = df[col].shift(i)
+        # for col in targets:
+        #     for i in range(1, lb + 1):
+        #         df[f"{col}_t-{i}"] = df[col].shift(i)
+        lag_data = {
+                f"{col}_t-{i}": df[col].shift(i)
+                for col in targets
+                for i in range(1, lb + 1)
+            }
+
+        df = pd.concat([df, pd.DataFrame(lag_data)], axis=1)
+        df = df.copy()  # defragmentation
 
         lag_features = [c for c in df.columns if "_t-" in c]
         time_features = ["DayOfWeek", "Month", "Day", "Hour", "Hour_sin", "Hour_cos"]
@@ -256,9 +264,17 @@ class PriceForecaster:
         targets = self.target_columns
 
         # Apply lagging features
-        for col in targets:
-            for i in range(1, lb + 1):
-                df[f"{col}_t-{i}"] = df[col].shift(i)
+        # for col in targets:
+        #     for i in range(1, lb + 1):
+        #         df[f"{col}_t-{i}"] = df[col].shift(i)
+        lag_data = {
+            f"{col}_t-{i}": df[col].shift(i)
+            for col in targets
+            for i in range(1, lb + 1)
+        }
+
+        df = pd.concat([df, pd.DataFrame(lag_data)], axis=1)
+        df = df.copy()  # defragmentazione
 
         lag_features = [c for c in df.columns if "_t-" in c]
         time_features = ["DayOfWeek", "Month", "Day", "Hour", "Hour_sin", "Hour_cos"]
