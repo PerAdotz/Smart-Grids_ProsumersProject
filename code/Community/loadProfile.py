@@ -21,11 +21,11 @@ def generate_load_profile():
         if 0 <= hour < 6: # Night (00:00 - 05:59) - Lowest consumption (sleeping)
             load.append(base_load * 0.3)
         elif 6 <= hour < 9: # Morning Peak (06:00 - 08:59) - High consumption (breakfast, showering)
-            load.append(base_load * 1.5)
+            load.append(base_load * 1.2)
         elif 9 <= hour < 17: # Day (09:00 - 16:59) - Low to moderate consumption (people away at work/school)
             load.append(base_load * 0.7)
         elif 17 <= hour < 22: # Evening Peak (17:00 - 21:59) - Highest consumption (cooking, entertainment, heating/cooling)
-            load.append(base_load * 2.0)
+            load.append(base_load * 1.5)
         else: # Late Evening (22:00 - 23:59) - Moderate consumption
             load.append(base_load * 0.8)
     

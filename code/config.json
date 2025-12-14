@@ -3,7 +3,7 @@
     "community": {
         "num_prosumers": 100,
         "pv_number_range": [0,20],
-        "battery_capacity_range": [0 ,5,10],
+        "battery_capacity_range": [0 ,10,15],
         "pv_losses": 14,
         "num_neighbourhoods": 5,
         "pv_capacity": 0.25,

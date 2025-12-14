@@ -32,7 +32,7 @@ def run_simulation(config):
 
 
     LOOKBACK = config["price_forecaster"]["lookback_hours"]
-    DATE_STRING = '2025-10-31' # latest point in the price dataset
+    DATE_STRING = '2025-08-15' 
 
     # Define the directory containing the datasets for the price forecasting model
     DATA_DIR = 'Data_ElectricityMarketPrices'
@@ -162,6 +162,7 @@ def run_simulation(config):
                     "penalty": stats["penalty"],
                     "p2p_exchanges": stats["p2p_exchanges"],
                     "agg_exchanges": stats["agg_exchanges"],
+                    "market_price": current_market_price,
                     "transactions": stats["transactions"]
                 })
 
