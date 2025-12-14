@@ -106,7 +106,7 @@ def run_simulation(config):
 
         # Prosumers set their trading prices based on their imbalance and the reference market price
         for prosumer in prosumers:
-            # Use the regional price (NORD)
+            # Use the regional price
             prosumer.calculate_trading_price(current_market_price=current_market_price)
 
         # Step 2: Self-Organized Trading (P2P Exchange)

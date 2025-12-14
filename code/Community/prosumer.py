@@ -169,8 +169,8 @@ class Prosumer:
         """
         # Add some randomness to simulate different bidding strategies
         if self.imbalance < 0: # Seller (has surplus energy to sell)
-            # Seller Strategy: Offer between 80% and 100% of market price
-            self.trading_price = current_market_price * np.random.uniform(0.8, 1.0)
+            # Seller Strategy: Offer between 70% and 90% of market price
+            self.trading_price = current_market_price * np.random.uniform(0.7, 0.9)
             
         elif self.imbalance > 0: # Buyer (has deficit energy to buy)
             # Buyer Strategy: Willing to pay 90% to 110% of market price
