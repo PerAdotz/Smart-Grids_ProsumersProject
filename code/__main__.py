@@ -12,8 +12,14 @@ def run_simulation(config):
     Main function to run the hourly energy trading simulation over a single day.
     Initializes all agents, processes energy balancing and trading steps, 
     manages the blockchain, and applies regulatory policies hourly.
+
+    Args:
+        config (dict): Configuration parameters for the simulation. 
+
+    Returns:
+        None
     """
-    # --- load configuration parameters ---
+    # --- Load configuration parameters ---
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     HOURS = config["hours"]
 
@@ -24,15 +30,21 @@ def run_simulation(config):
     BATTERY_RANGE = config["community"]["battery_capacity_range"]
     LOSSES = config["community"]["pv_losses"]
     NEIGHBOURHOOD_POOL = config["community"]["neighbourhoods_pool"]
-    PV_DIR = "PvForecast"
-    pv_model_path = os.path.join(BASE_DIR, PV_DIR, "pv_predictor_xgb.joblib")
+    
+    NETWORK_FEE = config["grid"]["network_fee"]
+    AGGREGATOR_FEE = config["grid"]["aggregator_fee"]
 
     P2P_BONUS_POLICY = config["regulator"]["p2p_bonus_policy"]
     GRID_PENALTY_POLICY = config["regulator"]["grid_penalty_policy"]
 
-
     LOOKBACK = config["price_forecaster"]["lookback_hours"]
+
+    # Define the simulation date
     DATE_STRING = '2025-08-15' 
+
+    # Define the path for the trained PV forecasting model
+    PV_DIR = "PvForecast"
+    pv_model_path = os.path.join(BASE_DIR, PV_DIR, "pv_predictor_xgb.joblib")
 
     # Define the directory containing the datasets for the price forecasting model
     DATA_DIR = 'Data_ElectricityMarketPrices'
@@ -70,7 +82,7 @@ def run_simulation(config):
     price_forecaster.load_model(price_model_path)
 
     # - BalancingProcess manages the hourly energy exchanges
-    balancing = BalancingProcess(prosumers, neighbourhoods)
+    balancing = BalancingProcess(prosumers, neighbourhoods, NETWORK_FEE, AGGREGATOR_FEE)
 
     # - Regulator applies incentive policies
     regulator = Regulator()
@@ -147,11 +159,13 @@ def run_simulation(config):
         # Collect and store statistics for the current hour
         for _, prosumers_in_neighbourhood in neighbourhoods.items():
             for prosumer in prosumers_in_neighbourhood:
-                stats = prosumer.get_stats(date, hour)
+                stats = prosumer.get_stats(hour)
                 stats_list.append({
                     "hour": hour,
                     "id": stats["id"],
                     "pv_capacity": stats["pv_capacity"],
+                    "pv_generation": stats["pv_generation"],
+                    "load": stats["load"],
                     "battery_capacity": stats["battery_capacity"],
                     "battery_level": stats["battery_level"],
                     "imbalance": stats["imbalance"],

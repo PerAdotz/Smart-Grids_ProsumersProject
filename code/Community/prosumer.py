@@ -38,6 +38,8 @@ class Prosumer:
             self.pv_model.load_model(pv_model_path)
 
         # State variables
+        self.pv_generation = 0 # current PV generation in kWh for the hour
+        self.load = 0 # current load in kWh for the hour
         self.battery_level = 0 # current battery level in kWh
         self.imbalance = 0 # current energy imbalance in kWh for the hour
         self.money_balance = 0 # money balance (earnings - costs)
@@ -62,7 +64,7 @@ class Prosumer:
         """
         return self.load_profile[hour]
 
-    def get_stats(self, date, hour):
+    def get_stats(self, hour):
         """
         Gathers a set of statistics and current state of the prosumer.
 
@@ -82,8 +84,8 @@ class Prosumer:
             "money_balance": self.money_balance,
             "trading_price": self.trading_price,
             "neighbourhood": self.neighbourhood,
-            "load" : self.get_load(hour),
-            "pv_generation" : self.generate_pv(date, hour),
+            "load": self.load,
+            "pv_generation": self.pv_generation,
             "bonus": self.bonus,
             "penalty": self.penalty,
             "p2p_exchanges": self.p2p_exchanges,
@@ -116,11 +118,11 @@ class Prosumer:
             date (str): The current date ("YYYY-MM-DD").
             hour (int): The current hour of the day (0-23).
         """
-        pv_generation = self.generate_pv(date, hour)
-        load = self.get_load(hour)
+        self.pv_generation = self.generate_pv(date, hour)
+        self.load = self.get_load(hour)
         # Calculate residual energy: Load - PV_Generation
         # POSITIVE IF DEFICIT (needs to buy), NEGATIVE IF SURPLUS (needs to sell)
-        residual = load - pv_generation
+        residual = self.load - self.pv_generation
 
         # Set the imbalance to the residual after generation/consumption
         self.imbalance = residual

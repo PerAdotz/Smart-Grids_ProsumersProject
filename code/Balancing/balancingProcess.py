@@ -9,17 +9,21 @@ class BalancingProcess:
     3. Local market trading (Aggregator/Grid exchange).
     """
 
-    def __init__(self, prosumers , neighbourhoods):
+    def __init__(self, prosumers , neighbourhoods, network_fee, aggregator_fee):
         """
         Initializes the BalancingProcess with the list of prosumers and their neighborhood grouping.
 
         Args:
             prosumers (list): A list of all Prosumer objects.
             neighbourhoods (dict): A dictionary mapping neighbourhoods to lists of Prosumer objects.
+            network_fee (float): The network fee percentage for P2P trades across neighbourhoods.
+            aggregator_fee (float): The fee percentage for trades with the Aggregator/Grid.
         """
         self.prosumers = prosumers
         self.neighbourhoods = neighbourhoods
         self.hour = 0
+        self.network_fee = network_fee
+        self.aggregator_fee = aggregator_fee
         
     def set_date_and_hour(self, date, hour):
         """
@@ -49,7 +53,7 @@ class BalancingProcess:
                 # Prosumer calculates net load (PV - Load) and uses battery for self-consumption/storage
                 prosumer.self_balance(self.date, self.hour)
 
-    def step2_self_organized_trading(self , energy_chain, margin=0.02):
+    def step2_self_organized_trading(self , energy_chain):
         """
         Conducts Peer-to-Peer (P2P) trading among all prosumers to maximize local energy exchange.
 
@@ -58,8 +62,7 @@ class BalancingProcess:
 
         Args:
             energy_chain (Blockchain): The blockchain instance to record energy transactions.
-            margin (float, optional): The network manager's profit margin applied to the base price. Defaults to 0.01.
-
+        
         Returns:
             None
         """
@@ -96,21 +99,25 @@ class BalancingProcess:
 
                 # If the buyer and the seller are from different neighbourhoods, add the network usage price
                 if buyer.neighbourhood != seller.neighbourhood:
-                    transaction_value = transaction_value * margin
+                    transaction_value_buyer = transaction_value * (1 + self.network_fee)
+                    transaction_value_seller = transaction_value * (1 - self.network_fee)
+                else:
+                    transaction_value_buyer = transaction_value
+                    transaction_value_seller = transaction_value
                 
                 # --- Buyer (Deficit) Accounting ---
                 # Buyer's bonus reduces the cost (e.g., bonus=1.02 means 2% discount)
                 if buyer.bonus > 0:
-                    cost_for_buyer = transaction_value / buyer.bonus
+                    cost_for_buyer = transaction_value_buyer / buyer.bonus
                 else:
-                    cost_for_buyer = transaction_value
+                    cost_for_buyer = transaction_value_buyer
 
                 buyer.imbalance -= amount
                 buyer.money_balance -= cost_for_buyer
                 
                 # --- Seller (Surplus) Accounting ---
                 # Seller's bonus increases the revenue (e.g., bonus=1.02 means 2% gain)
-                revenue_for_seller = transaction_value * seller.bonus
+                revenue_for_seller = transaction_value_seller * seller.bonus
 
                 seller.imbalance += amount # Surplus imbalance (negative) moves toward zero
                 seller.money_balance += revenue_for_seller
@@ -120,7 +127,7 @@ class BalancingProcess:
                     "sender": seller.id,
                     "receiver": buyer.id,
                     "amount": float(amount),
-                    "price_per_kWh": trade_price,
+                    "price_per_kWh": float(trade_price),
                     "type": "P2P",
                     "hour": self.hour
                 }
@@ -142,7 +149,7 @@ class BalancingProcess:
                 # If buyer's bid is lower than seller's ask, no more trades are economically viable
                 break
 
-    def step3_local_market(self, current_market_price , energy_chain, margin=0.05):
+    def step3_local_market(self, current_market_price , energy_chain):
         """
         Clears any remaining energy imbalance by trading with the Aggregator/Grid 
         at a fixed rate plus a margin and the prosumer's penalty factor.
@@ -150,8 +157,7 @@ class BalancingProcess:
         Args:
             current_market_price (float): The base reference price for grid trading.
             energy_chain (Blockchain): The blockchain instance to record grid transactions.
-            margin (float, optional): The aggregator's profit margin applied to the base price. Defaults to 0.05.
-
+        
         Returns:
             None
         """
@@ -170,7 +176,7 @@ class BalancingProcess:
                     
                     # Calculate final grid purchase price: Base * (1 + margin) * Penalty factor
                     # Penalty factor increases the cost (e.g., penalty=1.10 means 10% price increase)
-                    grid_price = current_market_price * (1 + margin) * p.penalty
+                    grid_price = current_market_price * (1 + self.aggregator_fee) * p.penalty
                     cost = amount_needed * grid_price
                     
                     p.money_balance -= cost
@@ -180,7 +186,7 @@ class BalancingProcess:
                         "sender": "Aggregator",
                         "receiver": p.id,
                         "amount": float(amount_needed),
-                        "price_per_kWh": grid_price,
+                        "price_per_kWh": float(grid_price),
                         "type": "GRID_buy",
                         "hour": self.hour
                     }
@@ -191,7 +197,7 @@ class BalancingProcess:
                     
                     # Calculate final grid sale price: Base * (1 - margin)
                     # The penalty factor is typically NOT applied to sales revenue.
-                    grid_price = current_market_price * (1 - margin)
+                    grid_price = current_market_price * (1 - self.aggregator_fee)
                     earnings = amount_sold * grid_price
                     
                     p.money_balance += earnings
@@ -201,7 +207,7 @@ class BalancingProcess:
                         "sender": p.id,
                         "receiver": "Aggregator",
                         "amount": float(amount_sold),
-                        "price_per_kWh": grid_price,
+                        "price_per_kWh": float(grid_price),
                         "type": "GRID_sell",
                         "hour": self.hour
                     }

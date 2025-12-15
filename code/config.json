@@ -2,8 +2,8 @@
     "hours": 24,
     "community": {
         "num_prosumers": 100,
-        "pv_number_range": [0,20],
-        "battery_capacity_range": [0 ,10,15],
+        "pv_number_range": [0, 20],
+        "battery_capacity_range": [0, 10, 15],
         "pv_losses": 14,
         "num_neighbourhoods": 5,
         "pv_capacity": 0.25,
@@ -19,6 +19,10 @@
                 "Cit_Turin": [45.070, 45.085, 7.660, 7.675],
                 "Barriera_di_Milano": [45.100, 45.115, 7.665, 7.685]
         }
+    },
+    "grid": {
+        "network_fee": 0.02,
+        "aggregator_fee": 0.05
     },
     "regulator": {
         "p2p_bonus_policy": {
