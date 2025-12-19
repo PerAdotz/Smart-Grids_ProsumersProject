@@ -1,6 +1,6 @@
 from Balancing.balancingProcess import BalancingProcess
 import pandas as pd
-from Blockchain.blockchain_v2 import Blockchain , Miner
+from Blockchain.blockchain import Blockchain , Miner
 from Balancing.regulator import Regulator
 from Community.community import generate_community
 from PriceForecast.priceForecaster import PriceForecaster
@@ -94,6 +94,7 @@ def run_simulation(config):
     miners_names = [f"Miner_Node_{i}" for i in range(1, NUM_MINERS + 1)]
 
     stats_list = [] # List to accumulate hourly statistics
+    stats_list_blockchain = [] # List to accumulate blockchain statistics
 
     # 4. Simulate
     print(f"Simulating for {HOURS} hours on {DATE_STRING}")
@@ -145,7 +146,16 @@ def run_simulation(config):
         # Select the winner based on weighted random choice (simulating Proof-of-Work)
         winner_name, winner_power = energy_chain.winner_selection(competitors_names, competitors_weights)
         print(f"  Winner Miner: {winner_name} (Hash Power: {winner_power:.4f})")
-        
+
+        stats_list_blockchain.append({
+            "hour": hour,
+            "all_competitors": competitors_names, # List of miner names
+            "all_powers": competitors_weights, # Corresponding list of powers
+            "winner_miner": winner_name,
+            "winner_power": winner_power,
+            "num_pending_transactions": len(energy_chain.pending_transactions)
+        })
+
         # The winning miner validates and adds the transactions to a new block
         energy_chain.mine_pending_transactions(winner_name)
 
@@ -185,11 +195,17 @@ def run_simulation(config):
     stats_path = os.path.join(BASE_DIR, "prosumer_stats.csv")
     output_stats.to_csv(stats_path, index=False)
 
+    output_stats_blockchain = pd.DataFrame(stats_list_blockchain)
+    stats_blockchain_path = os.path.join(BASE_DIR, "blockchain_stats.csv")
+    output_stats_blockchain.to_csv(stats_blockchain_path, index=False)
+
     # Print blockchain summary
     print(f"\nChain Length: {len(energy_chain.chain)} blocks")
     is_valid = energy_chain.is_chain_valid()
     print(f"Blockchain Integrity: {'VALID' if is_valid else 'CORRUPTED'}")
-    print("\nSimulation complete. Prosumer stats saved to 'prosumer_stats.csv'.")
+    print("\nSimulation complete.") 
+    print("Prosumer stats saved to 'prosumer_stats.csv'.")
+    print("Blockchain stats saved to 'blockchain_stats.csv'.")
 
 if __name__ == "__main__":
     with open("code/config.json", "r") as config_file:

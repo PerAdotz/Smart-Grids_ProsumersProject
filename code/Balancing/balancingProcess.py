@@ -1,4 +1,4 @@
-from Blockchain.blockchain_v2 import Transaction
+from Blockchain.blockchain import Transaction
 
 class BalancingProcess:
     """
