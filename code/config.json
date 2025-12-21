@@ -1,5 +1,6 @@
 {
     "hours": 24,
+    "date": "2025-08-15",
     "community": {
         "num_prosumers": 100,
         "pv_number_range": [0, 20],

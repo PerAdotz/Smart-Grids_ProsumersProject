@@ -40,7 +40,7 @@ def run_simulation(config):
     LOOKBACK = config["price_forecaster"]["lookback_hours"]
 
     # Define the simulation date
-    DATE_STRING = '2025-08-15' 
+    DATE_STRING = config["date"]
 
     # Define the path for the trained PV forecasting model
     PV_DIR = "PvForecast"
