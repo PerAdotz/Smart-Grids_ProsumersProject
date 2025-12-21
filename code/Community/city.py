@@ -173,8 +173,14 @@ class City:
             cmap='tab10',
             marker='o',
             markersize=5,
-            legend=False,
-            alpha=1
+            alpha=1,
+            legend=True,
+            legend_kwds={
+                'title': "Neighbourhoods",
+                'bbox_to_anchor': (1.05, 1), # (x, y) coordinates relative to the plot
+                'loc': 'upper left',         # The corner of the legend being placed
+                'borderaxespad': 0.          # Padding between the axes and the legend
+            }
         )
 
         # Add the basemap for context
