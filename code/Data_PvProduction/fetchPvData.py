@@ -3,6 +3,7 @@ from pvlib.iotools import get_pvgis_hourly
 import numpy as np
 import os
 import sys
+import json
 
 # Get the directory of the current file (PvForecast)
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -33,7 +34,7 @@ def fetch_pvgis_generation(prosumer, date_start, date_end):
     """
     try:
         # Call the PVGIS API to retrieve hourly data
-        data, _ = get_pvgis_hourly(
+        data, metadata = get_pvgis_hourly(
             latitude=prosumer.latitude, # Prosumer latitude
             longitude=prosumer.longitude, # Prosumer longitude
             peakpower=prosumer.pv_capacity, # Nominal power of PV system in kW
@@ -50,7 +51,7 @@ def fetch_pvgis_generation(prosumer, date_start, date_end):
         
         # Convert generation from Watts (W) to Kilowatts (kW)
         df['Generation_kW'] = df['Generation_kW'] / 1000.0
-        
+
         # Add system metadata as static feature columns for the machine learning model
         df['PV_Capacity_kW'] = prosumer.pv_capacity
         df['Latitude'] = prosumer.latitude
@@ -75,34 +76,28 @@ def fetch_pvgis_generation(prosumer, date_start, date_end):
 
 if __name__ == "__main__":
     # --- Configuration Parameters ---
-    NUM_PROSUMERS = 100
-    NUM_NEIGHBOURHOODS = 10
+    CONFIG_PATH = os.path.join(BASE_DIR, 'config.json')
+    with open(CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
 
-    # Geographical bounding boxes for 10 simulated neighbourhoods
-    NEIGHBOURHOOD_POOL = {
-        'Centro': [45.065, 45.080, 7.675, 7.690],
-        'San_Salvario': [45.050, 45.065, 7.675, 7.695],
-        'Crocetta': [45.060, 45.075, 7.645, 7.660],
-        'Aurora': [45.088, 45.100, 7.675, 7.695],
-        'Vanchiglia': [45.068, 45.083, 7.690, 7.710],
-        'Lingotto': [45.015, 45.035, 7.640, 7.665],
-        'Santa_Rita': [45.040, 45.055, 7.630, 7.655],
-        'San_Donato': [45.080, 45.095, 7.640, 7.658],
-        'Cit_Turin': [45.070, 45.085, 7.660, 7.675],
-        'Barriera_di_Milano': [45.100, 45.115, 7.665, 7.685],
-    }
+    MULTIPLIER = 5
+    NUM_PROSUMERS = config["community"]["num_prosumers"] * MULTIPLIER
 
-    PV_NUMBER_RANGE = (0, 20) # Range for number of PV panels
-    PV_CAPACITY = 0.25 # Single PV panel capacity in kW
-    BATTERY_RANGE = [0, 5, 10] # Available battery capacities in kW
-    LOSSES = 14 # Total system losses in percent
+    NEIGHBOURHOOD_POOL = config["community"]["neighbourhoods_pool"]
+    NUM_NEIGHBOURHOODS = len(NEIGHBOURHOOD_POOL)
+
+    PV_NUMBER_RANGE = tuple(config["community"]["pv_number_range"])
+    PV_CAPACITY = config["community"]["pv_capacity"]
+    BATTERY_RANGE = config["community"]["battery_capacity_range"]
+    LOSSES = config["community"]["pv_losses"]
 
     # Fetching data from 2021-2023 (exclusive end year)
     DATE_START = 2021
     DATE_END = 2023
 
     # Define the output path for the collected dataset
-    output_data_path = os.path.join(BASE_DIR, CURRENT_DIR, "pv_historical_dataset.csv")
+    ROWS_PER_FILE = 2_000_000
+    OUTPUT_PREFIX = "pv_historical_dataset_part"
 
     # --- Data Collection Process ---
     
@@ -122,11 +117,23 @@ if __name__ == "__main__":
     # Concatenate all individual feature sets vertically (stacking the time series)
     dataset = pd.concat(all_dataframes, axis=0)
 
-    # 4. Save the dataset
-    dataset.to_csv(output_data_path, index=True)
-
     print("\n--- Data Collection Summary ---")
-    print(f"Dataset saved to: {output_data_path}")
     print("Total rows:", len(dataset))
     print("Features:", list(dataset.columns))
     print("------------------------------")
+
+    # 4. Save the dataset in chunks to manage large file sizes
+    num_chunks = int(np.ceil(len(dataset) / ROWS_PER_FILE))
+    for i in range(num_chunks):
+        start = i * ROWS_PER_FILE
+        end = (i + 1) * ROWS_PER_FILE
+        chunk = dataset.iloc[start:end]
+
+        chunk_path = os.path.join(
+            BASE_DIR,
+            CURRENT_DIR,
+            f"{OUTPUT_PREFIX}_{i+1:02d}.csv.gz"
+        )
+
+        chunk.to_csv(chunk_path, index=True, compression="gzip")
+        print(f"Saved {chunk_path} ({len(chunk)} rows)")
