@@ -5,6 +5,9 @@ import pandas as pd
 import numpy as np
 import joblib
 import os
+from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
+from scipy.stats import randint, uniform
+import glob
 
 class PvModel:
     """
@@ -52,6 +55,79 @@ class PvModel:
         self.y_test = y.iloc[split_point:]
         print(f"Data split complete. Training size: {len(self.X_train)}, Testing size: {len(self.X_test)}")
 
+    def tune(self):
+        """
+        Performs hyperparameter tuning for the XGBoost Regressor using Randomized Search 
+        with Time Series Cross-Validation (TSCV).
+
+        The best model and parameters found are stored internally.
+
+        Returns:
+            best_model (xgb.XGBRegressor): The XGBoost model object trained with the optimal hyperparameters.
+            best_params (dict): A dictionary containing the best hyperparameters found by the search.
+        """
+        # Define the Parameter Search Space
+        param_distributions = {
+            # 1. Conservative Model Control (to reduce over-prediction and improve generalization)
+            'learning_rate': uniform(0.01, 0.1),    # Step size shrinkage (0.01 to 0.11)
+            'max_depth': randint(3, 7),             # Maximum depth of a tree (3 to 6)
+            'gamma': uniform(0.01, 0.5),            # Minimum loss reduction required for a split
+            'lambda': uniform(0.1, 2.0),            # L2 regularization term on weights
+            'alpha': uniform(0.0, 1.0),             # L1 regularization term on weights
+
+            # 2. Variance Reduction (subsampling)
+            'subsample': uniform(0.6, 0.4),         # Fraction of samples used for training each tree (0.6 to 1.0)
+            'colsample_bytree': uniform(0.6, 0.4),  # Fraction of features used for training each tree (0.6 to 1.0)
+
+            # 3. Boosting Rounds
+            'n_estimators': randint(1000, 5000)     # Number of boosting rounds/trees (1000 to 4999)
+        }
+
+        # Initialize the base model
+        # Its parameters will be set by the search
+        xgb_model = xgb.XGBRegressor(
+            objective='reg:squarederror',
+            random_state=42,
+            n_jobs=-1
+        )
+
+        # Use TimeSeriesSplit for Cross-Validation (TSCV) to avoid data leakage
+        # The data is split chronologically, respecting the time dependency
+        tscv = TimeSeriesSplit(n_splits=5)
+
+        # Initialize the Randomized Search
+        random_search = RandomizedSearchCV(
+            estimator=xgb_model,
+            param_distributions=param_distributions,
+            n_iter=50,             # Number of different parameter combinations to try (50-100 is often enough)
+            scoring='neg_mean_squared_error', # Standard for regression: we want to maximize the negative MSE
+            cv=tscv,
+            verbose=2,             # Higher verbosity prints more details during the run
+            random_state=42,
+            n_jobs=-1              # Use all cores for parallelizing the search
+        )
+
+        # Fit the search to the training data
+        print("Starting Randomized Search with Time Series Cross-Validation...")
+        random_search.fit(self.X_train, self.y_train)
+
+        # Get the best parameters and the best model
+        best_params = random_search.best_params_
+        best_score = random_search.best_score_
+        best_model = random_search.best_estimator_
+
+        # Print results
+        print("\n--- Tuning Results ---")
+        print(f"Best Parameters: {best_params}")
+        print(f"Best Negative MSE: {best_score}")
+        print(f"Equivalent Best RMSE: {(-best_score)**0.5:.4f}")
+        """
+        --- Tuning Results ---
+        Best Parameters: {'alpha': np.float64(0.5414479738275658), 'colsample_bytree': np.float64(0.8783137597380328), 'gamma': np.float64(0.12427501089864983), 'lambda': np.float64(0.44990985419187235), 'learning_rate': np.float64(0.10821683433294356), 'max_depth': 6, 'n_estimators': 4643, 'subsample': np.float64(0.7043316699321636)}
+        Best Negative MSE: -0.08748343559908503
+        Equivalent Best RMSE: 0.2958
+        """
+
     def train(self):
         """
         Initializes and trains an XGBoost Regressor model using the training data.
@@ -62,8 +138,14 @@ class PvModel:
         # Initialize the XGBoost Regressor model
         self.model = xgb.XGBRegressor(
             objective='reg:squarederror', # Standard objective for regression tasks
-            n_estimators=1000, # Number of boosting rounds (trees)
-            learning_rate=0.05, # Step size shrinkage to prevent overfitting
+            colsample_bytree=0.858,
+            n_estimators=4643, # Number of boosting rounds (trees)
+            gamma=0.124,
+            alpha=0.541,
+            reg_lambda=0.45,
+            max_depth=6,
+            subsample=0.704,
+            learning_rate=0.108, # Step size shrinkage to prevent overfitting
             n_jobs=-1, # Use all available CPU cores for parallel training
             random_state=42 # Seed for reproducibility
         )
@@ -216,6 +298,16 @@ class PvModel:
     
     # --- Plotting Methods ---
 
+    def plot_importance_scores(self):
+        """
+        Plots the feature importance scores of the trained XGBoost model.
+        """
+        fig, ax = plt.subplots(figsize=(10, 8))
+        xgb.plot_importance(self.model, ax=ax, importance_type='gain', title='Feature Importance (Gain)')
+        plt.title("XGBoost Feature Importance")
+        plt.tight_layout()
+        plt.show()
+
     def plot_timeseries(self):
         """
         Plots actual vs predicted PV generation over the test set time index.
@@ -314,9 +406,8 @@ class PvModel:
         plt.show()
     
 if __name__ == "__main__":
+    tuning = True # Set to True to tune the model to find the best hyperparameters
     training = True # Set to False to skip training and only predict
-    # For training, you need a 'pv_historical_dataset.csv' 
-    # in the same directory containing the required feature columns
 
     TRAIN_RATIO = 0.80
 
@@ -327,20 +418,33 @@ if __name__ == "__main__":
     BASE_DIR = os.path.dirname(CURRENT_DIR)
 
     # Define the paths of the input dataset and the output model
-    imput_data_path = os.path.join(BASE_DIR, CURRENT_DIR, "pv_historical_dataset.csv")
+    DATA_DIR = "Data_PvProduction"
+    input_data_path = os.path.join(BASE_DIR, DATA_DIR, "pv_historical_dataset_part_*.csv.gz")
     output_model_path = os.path.join(BASE_DIR, CURRENT_DIR, "pv_predictor_xgb.joblib")
 
     # Initialize the model
     model = PvModel()
 
-    # Train
-    if training:
-        # Load the dataset
-        dataset = pd.read_csv(imput_data_path)
+    if tuning or training:
+        # Load and concatenate all dataset parts
+        print("Loading dataset...")
+        files = sorted(glob.glob(input_data_path))
+        dataset = pd.concat(
+            (pd.read_csv(f) for f in files),
+            ignore_index=True
+        )
 
         # Split the dataset
+        print("Splitting dataset...")
         model.split(dataset, TRAIN_RATIO)
 
+    # Tune
+    if tuning:
+        # Tune the model
+        model.tune()
+
+    # Train
+    elif training:
         # Train the model 
         model.train()
 
@@ -349,6 +453,7 @@ if __name__ == "__main__":
 
         # Plot
         print("Displaying plots...")
+        model.plot_importance_scores()
         model.plot_timeseries()
         model.plot_scatter_error()
         model.plot_error_vs_actual()
