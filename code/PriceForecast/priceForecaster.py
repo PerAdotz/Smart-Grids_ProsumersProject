@@ -1,12 +1,14 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 from lightgbm import LGBMRegressor
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 from math import sqrt
 import os
 import joblib
+import json
 
 class PriceForecaster:
     """
@@ -238,6 +240,34 @@ class PriceForecaster:
         print("\n=== Overall LightGBM model performance ===")
         print(f"Global RMSE: {overall_rmse:.3f}")
         print(f"Global R2:   {overall_r2:.3f}")
+        """
+        === LightGBM forecast metrics per zone ===
+        PUN: RMSE=7.751, R2=0.941
+        AUST: RMSE=7.938, R2=0.937
+        BSP: RMSE=7.938, R2=0.937
+        CALA: RMSE=9.326, R2=0.923
+        CNOR: RMSE=8.298, R2=0.934
+        COAC: RMSE=13.336, R2=0.887
+        CORS: RMSE=54.108, R2=0.984
+        CSUD: RMSE=8.533, R2=0.933
+        FRAN: RMSE=7.938, R2=0.937
+        GREC: RMSE=9.424, R2=0.925
+        MALT: RMSE=10.579, R2=0.909
+        MONT: RMSE=8.596, R2=0.932
+        NORD: RMSE=7.938, R2=0.937
+        SARD: RMSE=13.257, R2=0.888
+        SICI: RMSE=10.547, R2=0.909
+        SLOV: RMSE=7.938, R2=0.937
+        SUD: RMSE=9.424, R2=0.925
+        SVIZ: RMSE=7.938, R2=0.937
+        XAUS: RMSE=7.938, R2=0.937
+        XFRA: RMSE=7.938, R2=0.937
+        XGRE: RMSE=9.424, R2=0.925
+
+        === Overall LightGBM model performance ===
+        Global RMSE: 14.861
+        Global R2:   0.929
+        """
 
         return overall_rmse, overall_r2
 
@@ -435,8 +465,6 @@ class PriceForecaster:
         except Exception as e:
             print(f"ERROR: Failed to load model: {e}")
 
-    # --- Plotting Methods ---
-
     def get_test_predictions(self, lookback=None):
         """
         Extracts the actual and predicted values for the test set of the 
@@ -469,7 +497,42 @@ class PriceForecaster:
         
         return y_test, y_pred_df
 
-    def plot_zone_timeseries(self, zone, lookback=None):
+    # --- Plotting Methods ---
+
+    def plot_feature_importance(self, zone, top_n=20):
+        """
+        Plots the feature importance for a specific zone's model.
+        
+        Args:
+            zone (str): The target zone name to inspect.
+            top_n (int): Number of top features to display.
+        """
+        if self.multi_output_model is None:
+            raise ValueError("Model must be trained before plotting importance.")
+        
+        if zone not in self.target_columns:
+            raise ValueError(f"Zone '{zone}' not found in targets.")
+
+        # Identify the index of the zone in the multi-output wrapper
+        zone_index = self.target_columns.index(zone)
+        
+        # Extract the specific LightGBM model for that zone
+        target_model = self.multi_output_model.estimators_[zone_index]
+        
+        # Get importance scores
+        importances = target_model.feature_importances_
+        indices = np.argsort(importances)[-top_n:]  # Get indices of top N features
+
+        # 4. Plot
+        plt.figure(figsize=(10, 8))
+        plt.title(f"Price Forecasting Feature Importance for {zone}")
+        plt.barh(range(len(indices)), importances[indices], color='steelblue', align='center')
+        plt.yticks(range(len(indices)), [self.feature_columns[i] for i in indices])
+        plt.xlabel("Importance Score")
+        plt.tight_layout()
+        plt.show()
+
+    def plot_zone_timeseries(self, zone, lookback=None, last_n=200):
         """
         Plots actual vs predicted prices over the test set time index for a specific zone 
         using the multi-output model.
@@ -477,6 +540,7 @@ class PriceForecaster:
         Args:
             zone (str): The price zone column name to plot.
             lookback (int, optional): The lookback window used for feature creation. Defaults to self.lookback.
+            last_n (int): Number of last samples to plot.
         """
         try:
             y_test, y_pred_df = self.get_test_predictions(lookback)
@@ -487,19 +551,24 @@ class PriceForecaster:
         if zone not in self.target_columns:
             raise ValueError(f"Zone '{zone}' not found in target columns.")
         
-        actual = y_test[zone]
-        predicted = y_pred_df[zone]
+        actual = y_test[zone].tail(last_n)
+        predicted = y_pred_df[zone].tail(last_n)
 
         # Plot the actual values
         plt.figure(figsize=(12, 6))
-        plt.plot(actual.values, label='Actual Price', alpha=0.7, linewidth=1.5)
+        plt.plot(actual.values, label='Actual Price', color='tab:blue', linewidth=2)
         
         # Plot the predicted values
-        plt.plot(predicted.values, label='Predicted Price', linestyle='--', color='red', linewidth=1.0)
+        plt.plot(predicted.values, label='Predicted Price', linestyle='--', color='tab:orange')
+
+        # Format the dates on the x-axis
+        ax = plt.gca()
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+        plt.gcf().autofmt_xdate()
         
         plt.xlabel("Test samples (time order)")
         plt.ylabel("Price (€)")
-        plt.title(f"{zone} - Actual vs Predicted Price (Test Set)")
+        plt.title(f"{zone} - Actual vs Predicted Price (Test Set, last {last_n} points)")
         plt.legend()
         plt.grid(True)
         plt.tight_layout()
@@ -617,7 +686,6 @@ class PriceForecaster:
         plt.show()
 
 if __name__ == "__main__":
-    
     # Get the directory of the current file (PriceForecast)
     CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -637,6 +705,13 @@ if __name__ == "__main__":
 
     # Define the path to save the model
     output_model_path = os.path.join(BASE_DIR, CURRENT_DIR, "price_forecaster_multi.joblib")
+
+    # Configuration Parameters
+    CONFIG_PATH = os.path.join(BASE_DIR, 'config.json')
+    with open(CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    PRICE_TYPE = config["price_forecaster"]["price_type"]
     
     # Initialize and load data
     lookback = 24
@@ -677,17 +752,11 @@ if __name__ == "__main__":
     print("\nPlotting the RMSE zone...")
     forecaster.plot_rmse_per_zone()
     
-    # Plot for PUN zone
-    print("\nDisplaying plots for PUN zone...")
-    forecaster.plot_zone_timeseries(zone="PUN")
-    forecaster.plot_zone_scatter_error(zone="PUN")
-    forecaster.plot_zone_error_vs_price(zone="PUN")
-
-    # Plot for NORD zone
-    print("\nDisplaying plots for NORD zone...")
-    forecaster.plot_zone_timeseries(zone="NORD")
-    forecaster.plot_zone_scatter_error(zone="NORD")
-    forecaster.plot_zone_error_vs_price(zone="NORD")
+    # Plot for PRICE_TYPE zone
+    print(f"\nDisplaying plots for {PRICE_TYPE} zone...")
+    forecaster.plot_zone_timeseries(zone=PRICE_TYPE)
+    forecaster.plot_zone_scatter_error(zone=PRICE_TYPE)
+    forecaster.plot_zone_error_vs_price(zone=PRICE_TYPE)
 
     # Save the model
     forecaster.save_model(output_model_path)
