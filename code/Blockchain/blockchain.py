@@ -224,7 +224,7 @@ class Blockchain:
 
 # --- 4. MINER CLASS ---
 class Miner:
-    """Represents a mining node with a certain computational power/stake."""
+    """Represents a mining node with a certain computational power."""
     
     def __init__(self, miner_id):
         """

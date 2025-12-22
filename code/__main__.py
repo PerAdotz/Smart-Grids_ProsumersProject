@@ -93,7 +93,7 @@ def run_simulation(config):
     # 3. Setup miners for the Proof-of-Work process
     miners_names = [f"Miner_Node_{i}" for i in range(1, NUM_MINERS + 1)]
 
-    stats_list = [] # List to accumulate hourly statistics
+    stats_list_prosumer = [] # List to accumulate hourly statistics
     stats_list_blockchain = [] # List to accumulate blockchain statistics
 
     # 4. Simulate
@@ -170,7 +170,7 @@ def run_simulation(config):
         for _, prosumers_in_neighbourhood in neighbourhoods.items():
             for prosumer in prosumers_in_neighbourhood:
                 stats = prosumer.get_stats(hour)
-                stats_list.append({
+                stats_list_prosumer.append({
                     "hour": hour,
                     "id": stats["id"],
                     "pv_capacity": stats["pv_capacity"],
@@ -191,9 +191,9 @@ def run_simulation(config):
                 })
 
     # Finalize and save simulation results
-    output_stats = pd.DataFrame(stats_list)
-    stats_path = os.path.join(BASE_DIR, "prosumer_stats.csv")
-    output_stats.to_csv(stats_path, index=False)
+    output_stats_prosumer = pd.DataFrame(stats_list_prosumer)
+    stats_prosumer_path = os.path.join(BASE_DIR, "prosumer_stats.csv")
+    output_stats_prosumer.to_csv(stats_prosumer_path, index=False)
 
     output_stats_blockchain = pd.DataFrame(stats_list_blockchain)
     stats_blockchain_path = os.path.join(BASE_DIR, "blockchain_stats.csv")
