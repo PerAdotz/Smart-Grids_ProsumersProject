@@ -1,6 +1,7 @@
 import xgboost as xgb
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import pandas as pd
 import numpy as np
 import joblib
@@ -8,6 +9,7 @@ import os
 from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
 from scipy.stats import randint, uniform
 import glob
+import seaborn as sns
 
 class PvModel:
     """
@@ -70,7 +72,7 @@ class PvModel:
         param_distributions = {
             # 1. Conservative Model Control (to reduce over-prediction and improve generalization)
             'learning_rate': uniform(0.01, 0.1),    # Step size shrinkage (0.01 to 0.11)
-            'max_depth': randint(3, 7),             # Maximum depth of a tree (3 to 6)
+            'max_depth': randint(3, 5),             # Maximum depth of a tree (3 to 6)
             'gamma': uniform(0.01, 0.5),            # Minimum loss reduction required for a split
             'lambda': uniform(0.1, 2.0),            # L2 regularization term on weights
             'alpha': uniform(0.0, 1.0),             # L1 regularization term on weights
@@ -80,7 +82,7 @@ class PvModel:
             'colsample_bytree': uniform(0.6, 0.4),  # Fraction of features used for training each tree (0.6 to 1.0)
 
             # 3. Boosting Rounds
-            'n_estimators': randint(1000, 5000)     # Number of boosting rounds/trees (1000 to 4999)
+            'n_estimators': randint(1000, 2000)     # Number of boosting rounds/trees (1000 to 1999)
         }
 
         # Initialize the base model
@@ -88,7 +90,8 @@ class PvModel:
         xgb_model = xgb.XGBRegressor(
             objective='reg:squarederror',
             random_state=42,
-            n_jobs=-1
+            n_jobs=-1,
+            tree_method='hist'
         )
 
         # Use TimeSeriesSplit for Cross-Validation (TSCV) to avoid data leakage
@@ -99,7 +102,7 @@ class PvModel:
         random_search = RandomizedSearchCV(
             estimator=xgb_model,
             param_distributions=param_distributions,
-            n_iter=50,             # Number of different parameter combinations to try (50-100 is often enough)
+            n_iter=5,             # Number of different parameter combinations to try (50-100 is often enough)
             scoring='neg_mean_squared_error', # Standard for regression: we want to maximize the negative MSE
             cv=tscv,
             verbose=2,             # Higher verbosity prints more details during the run
@@ -114,7 +117,6 @@ class PvModel:
         # Get the best parameters and the best model
         best_params = random_search.best_params_
         best_score = random_search.best_score_
-        best_model = random_search.best_estimator_
 
         # Print results
         print("\n--- Tuning Results ---")
@@ -123,9 +125,9 @@ class PvModel:
         print(f"Equivalent Best RMSE: {(-best_score)**0.5:.4f}")
         """
         --- Tuning Results ---
-        Best Parameters: {'alpha': np.float64(0.5414479738275658), 'colsample_bytree': np.float64(0.8783137597380328), 'gamma': np.float64(0.12427501089864983), 'lambda': np.float64(0.44990985419187235), 'learning_rate': np.float64(0.10821683433294356), 'max_depth': 6, 'n_estimators': 4643, 'subsample': np.float64(0.7043316699321636)}
-        Best Negative MSE: -0.08748343559908503
-        Equivalent Best RMSE: 0.2958
+        Best Parameters: {'alpha': np.float64(0.8661761457749352), 'colsample_bytree': np.float64(0.8404460046972835), 'gamma': np.float64(0.36403628889802275), 'lambda': np.float64(0.1411689885916049), 'learning_rate': np.float64(0.10699098521619943), 'max_depth': 4, 'n_estimators': 1413, 'subsample': np.float64(0.6849356442713105)}
+        Best Negative MSE: -0.0961074152548122
+        Equivalent Best RMSE: 0.3100
         """
 
     def train(self):
@@ -138,22 +140,28 @@ class PvModel:
         # Initialize the XGBoost Regressor model
         self.model = xgb.XGBRegressor(
             objective='reg:squarederror', # Standard objective for regression tasks
-            colsample_bytree=0.858,
-            n_estimators=4643, # Number of boosting rounds (trees)
-            gamma=0.124,
-            alpha=0.541,
-            reg_lambda=0.45,
-            max_depth=6,
-            subsample=0.704,
-            learning_rate=0.108, # Step size shrinkage to prevent overfitting
+            colsample_bytree=0.840,
+            n_estimators=1413, # Number of boosting rounds (trees)
+            gamma=0.364,
+            alpha=0.866,
+            reg_lambda=0.141,
+            max_depth=4,
+            subsample=0.685,
+            learning_rate=0.107, # Step size shrinkage to prevent overfitting
             n_jobs=-1, # Use all available CPU cores for parallel training
-            random_state=42 # Seed for reproducibility
+            random_state=42, # Seed for reproducibility
+            tree_method='hist'
         )
 
         # Train the model on the split training data
         print("\nTraining XGBoost Regressor...")
         self.model.fit(self.X_train, self.y_train)
         print("Training Complete.")
+        """
+        Mean Absolute Error (MAE): 0.179 kW
+        Root Mean Square Error (RMSE): 0.350 kW
+        R-squared (R²): 0.8095
+        """
 
     def get_test_predictions(self):
         """
@@ -304,34 +312,55 @@ class PvModel:
         """
         fig, ax = plt.subplots(figsize=(10, 8))
         xgb.plot_importance(self.model, ax=ax, importance_type='gain', title='Feature Importance (Gain)')
-        plt.title("XGBoost Feature Importance")
+        for text in ax.texts:
+            val = float(text.get_text())
+            text.set_text(f'{val:.2f}')
+        plt.title("PV Generation Forecasting Feature Importance")
         plt.tight_layout()
         plt.show()
 
-    def plot_timeseries(self):
+    def plot_seasonal_days(self, dates_to_plot):
         """
-        Plots actual vs predicted PV generation over the test set time index.
+        Plots the daily mean and standard deviation of actual vs predicted PV generation
+        for specified dates to illustrate seasonal variations. 
+
+        Args:
+            dates_to_plot (list): List of date strings (YYYY-MM-DD) to plot.
         """
         try:
             y_test, y_pred = self.get_test_predictions()
         except ValueError as e:
             print(f"Plotting Error: {e}")
             return
+        
+        y_test.index = pd.to_datetime(y_test.index)
+        
+        # Preparation of a unique DataFrame for Seaborn
+        df_plot = pd.DataFrame({
+            'Hour': y_test.index.hour,
+            'Date': y_test.index.strftime('%Y-%m-%d'),
+            'Actual': y_test.values,
+            'Predicted': y_pred
+        })
+        
+        for i, date_str in enumerate(dates_to_plot):
+            plt.figure(figsize=(12, 6))
+            day_df = df_plot[df_plot['Date'] == date_str]
+            
+            # Real mean and standard deviation
+            sns.lineplot(data=day_df, x='Hour', y='Actual', errorbar='sd', 
+                        label='Actual', color='tab:blue', linewidth=2)
+            
+            # Predicted mean and standard deviation
+            sns.lineplot(data=day_df, x='Hour', y='Predicted', errorbar='sd', 
+                        label='Predicted', color='tab:orange', linestyle='--')
 
-        # Plot the actual values
-        plt.figure(figsize=(12, 6))
-        plt.plot(y_test.index, y_test, label='Actual PV Generation', alpha=0.7, linewidth=1.5)
-        
-        # Plot the predicted values
-        plt.plot(y_test.index, y_pred, label='Predicted PV Generation', linestyle='--', color='red', linewidth=1.0)
-        
-        plt.title('Actual vs. Predicted PV Generation (Test Set)')
-        plt.xlabel('Test samples (time order)')
-        plt.ylabel('Power (kW)')
-        plt.legend()
-        plt.grid(True)
-        plt.tight_layout()
-        plt.show()
+            plt.title(f'Daily mean and standard deviation of PV generation - {date_str}')
+            plt.ylabel('Power (kW)')
+            plt.grid(True, alpha=0.3)
+
+            plt.tight_layout()
+            plt.show()
 
     def plot_scatter_error(self):
         """
@@ -406,8 +435,8 @@ class PvModel:
         plt.show()
     
 if __name__ == "__main__":
-    tuning = True # Set to True to tune the model to find the best hyperparameters
-    training = True # Set to False to skip training and only predict
+    tuning = False # Set to True to tune the model to find the best hyperparameters
+    training = False # Set to False to skip training and only predict
 
     TRAIN_RATIO = 0.80
 
@@ -430,8 +459,8 @@ if __name__ == "__main__":
         print("Loading dataset...")
         files = sorted(glob.glob(input_data_path))
         dataset = pd.concat(
-            (pd.read_csv(f) for f in files),
-            ignore_index=True
+            (pd.read_csv(f, index_col=0, parse_dates=True) for f in files),
+            ignore_index=False
         )
 
         # Split the dataset
@@ -454,7 +483,7 @@ if __name__ == "__main__":
         # Plot
         print("Displaying plots...")
         model.plot_importance_scores()
-        model.plot_timeseries()
+        model.plot_seasonal_days(['2023-06-21', '2023-12-21'])
         model.plot_scatter_error()
         model.plot_error_vs_actual()
 
