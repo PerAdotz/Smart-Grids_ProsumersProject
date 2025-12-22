@@ -18,12 +18,13 @@
 - Eléonore Amélie Charvin - s334989
 - Luca Marchese - s349507
 - Lorenzo Eustachio Braia - s346316
+- Parnian Sarhadi - s343304
 
 ---
 
 ##  Project Overview
 
-This project implements a complete simulation of a prosumer community in a local energy market. The simulator models the behavior of 100 prosumers who balance their energy needs through a three-step hierarchical process, with transactions recorded on a blockchain using a Proof-of-Work consensus mechanism.
+This project implements a complete simulation of a prosumer community in a local energy market. The simulator models the behaviour of 100 prosumers who balance their energy needs through a three-step hierarchical process, with transactions recorded on a blockchain using a Proof-of-Work consensus mechanism.
 
 ### Project Requirements (from Course Instructions)
 
@@ -68,8 +69,7 @@ The prosumer community is organized into **neighbourhoods** within a city enviro
   - Transaction history
 
 - **Neighbourhoods**: Up to 10 predefined areas in Turin, Italy:
-  - Centro, San Salvario, Crocetta, Aurora, Vanchiglia
-  - Lingotto, Santa Rita, San Donato, Cit Turin, Barriera di Milano
+  - Centro, San Salvario, Crocetta, Aurora, Vanchiglia, Lingotto, Santa Rita, San Donato, Cit Turin, Barriera di Milano
   - Network fees apply for cross-neighbourhood P2P trading
 
 - **City Management**: Handles geographic distribution and visualization of prosumers across neighbourhoods
@@ -104,6 +104,7 @@ Remaining imbalances cleared with grid at fixed rates:
 - **Buying from grid**: `price = market_price × (1 + aggregator_fee) × penalty_factor`
 - **Selling to grid**: `price = market_price × (1 - aggregator_fee)`
 - **Penalty factors** increase purchase costs for heavy grid users
+- **Aggregator fees**: 5% applied to local market trades
 - All transactions recorded on blockchain
 
 ### 3. Regulator Strategy
@@ -173,7 +174,7 @@ The `PriceForecaster` uses historical Italian electricity market data (2021-2025
 
 ## ⚙️ Configuration System
 
-All simulation parameters are defined in `config.json` and can be easily modified without changing code:
+All simulation parameters are defined in `config.json` and can be easily modified without changing the code:
 
 ### Community Parameters
 ```json
@@ -284,6 +285,7 @@ python -m code
 - s334989@studenti.polito.it
 - s349507@studenti.polito.it
 - s346316@studenti.polito.it
+- s343304@studenti.polito.it
 
 ---
 
