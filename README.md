@@ -172,7 +172,7 @@ The `PriceForecaster` uses historical Italian electricity market data (2021-2025
 
 ---
 
-## ⚙️ Configuration System
+## Configuration System
 
 All simulation parameters are defined in `config.json` and can be easily modified without changing the code:
 
