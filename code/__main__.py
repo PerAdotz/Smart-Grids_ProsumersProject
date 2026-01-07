@@ -208,6 +208,9 @@ def run_simulation(config):
     print("Blockchain stats saved to 'blockchain_stats.csv'.")
 
 if __name__ == "__main__":
-    with open("code/config.json", "r") as config_file:
+    # Get the directory of the current file (code)
+    CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+    CONFIG_PATH = os.path.join(CURRENT_DIR, 'config.json')
+    with open(CONFIG_PATH, "r") as config_file:
         config = json.load(config_file)
     run_simulation(config)

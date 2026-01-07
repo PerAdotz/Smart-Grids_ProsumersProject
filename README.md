@@ -58,13 +58,14 @@ The simulation needs to be run for at least 24 steps
 
 ### 1. Community Structure
 
-The prosumer community is organized into **neighbourhoods** within a city environment:
+The prosumer community is organized into **neighbourhoods** within a city environment. All the files are inside the folder `Community`.
 
 - **Prosumers**: Each prosumer has:
-  - PV generation capacity (0-20 panels × 0.25 kW each)
-  - 24-hour load profile (realistic residential consumption pattern)
+  - PV generation capacity (0 to 20 panels × 0.25 kW each)
+  - 24-hour load profile (realistic residential consumption pattern, modulated by a random base load of 0.5 to 1.5 kW)
   - Battery storage (0, 10, or 15 kWh capacity)
-  - Geographic location (latitude/longitude within assigned neighbourhood)
+  - Neighbourhood (randomly selected)
+  - Geographic location (latitude/longitude within the assigned neighbourhood)
   - Financial balance tracking
   - Transaction history
 
@@ -76,7 +77,7 @@ The prosumer community is organized into **neighbourhoods** within a city enviro
 
 ### 2. Balancing Process (Three-Step Mechanism)
 
-The `BalancingProcess` class manages hourly energy trading through three sequential steps:
+`Balancing/balancingProcess.py` manages hourly energy trading through three sequential steps:
 
 #### **Step 1: Self-Balancing**
 Each prosumer:
@@ -97,7 +98,7 @@ Each prosumer:
   - Buyers: Cost reduced by bonus factor (e.g., 1.05 = 5% discount)
   - Sellers: Revenue increased by bonus factor (e.g., 1.05 = 5% gain)
 - **Network fees**: 2% applied to cross-neighbourhood trades
-- All transactions recorded on blockchain
+- All transactions are recorded on the blockchain
 
 #### **Step 3: Local Market (Grid/Aggregator)**
 Remaining imbalances cleared with grid at fixed rates:
@@ -105,13 +106,13 @@ Remaining imbalances cleared with grid at fixed rates:
 - **Selling to grid**: `price = market_price × (1 - aggregator_fee)`
 - **Penalty factors** increase purchase costs for heavy grid users
 - **Aggregator fees**: 5% applied to local market trades
-- All transactions recorded on blockchain
+- All transactions are recorded on the blockchain
 
 ### 3. Regulator Strategy
 
 **Objective**: Maximize self-organized P2P trading by incentivizing local energy exchange over grid reliance.
 
-The `Regulator` class implements a dynamic reward/penalty system:
+`Balancing/regulator.py` implements a dynamic reward/penalty system:
 
 #### **Bonus System** (Rewards for P2P Trading)
 Multiplier applied to transaction prices based on cumulative P2P exchanges:
@@ -141,7 +142,9 @@ After each hour:
 3. Recalculates bonus and penalty multipliers for next hour
 4. Multipliers persist and accumulate throughout simulation
 
-### 4. Blockchain & Consensus
+### 4. Blockchain and Consensus
+
+`Blockchain/blockchain.py` implements the blockchain.
 
 #### **Transaction Recording**
 Every energy trade creates a `Transaction` object containing:
@@ -164,10 +167,19 @@ Every energy trade creates a `Transaction` object containing:
 
 ### 5. Price Forecasting
 
-The `PriceForecaster` uses historical Italian electricity market data (2021-2025) to predict:
+`PriceForecast/priceForecaster.py` is a Multi-output LightGBM regression model that uses historical Italian electricity market data (2021-2025) to predict:
 - **PUN** (Prezzo Unico Nazionale): National wholesale price
 - Hour-ahead predictions using time-series features
 - Used as reference price for P2P bidding and grid transactions
+
+### 6. PV Generation Data Download
+
+`Data_PvProduction/fetchPvData.py` is a file aming at downloading from [PVGIS](https://re.jrc.ec.europa.eu/pvg_tools/en/) the hourly PV generation for 500 randomly generated prosumers from 2021 to 2023.
+
+### 7. PV Generation Forecasting
+
+`PvForecast/pvModel.py` is a XGBoost regression model that uses the historical downloaded from [PVGIS](https://re.jrc.ec.europa.eu/pvg_tools/en/) to predict the generation of 
+the PV panels of each prosumer at each hour of the simulation based on their parameters.
 
 ---
 
@@ -233,7 +245,7 @@ All simulation parameters are defined in `config.json` and can be easily modifie
 "date" : "2025-08-15" //Date of the simulation
 ```
 
-**Note**: Possible to experiment with different configurations by modifying `config.json` to test various scenarios.
+**Note**: It is possible to experiment with different configurations by modifying the values inside `config.json` to test various scenarios.
 
 ---
 
@@ -241,7 +253,15 @@ All simulation parameters are defined in `config.json` and can be easily modifie
 
 ### Prerequisites
 
-Install required Python packages:
+In a terminal with Python 3.12 installed, clone this repository: 
+
+```bash
+git clone https://github.com/PerAdotz/Smart-Grids_ProsumersProject.git
+```
+
+Open a terminal and move inside the cloned folder.
+
+Install the required Python packages:
 
 ```bash
 pip install -r requirements.txt
@@ -249,32 +269,45 @@ pip install -r requirements.txt
 
 ### Execution
 
-Run the main simulation:
+Run the main simulation from your terminal:
 
 ```bash
 cd code
-python -m __main__
+python3 __main__.py
 ```
 
-Or from project root:
-
-```bash
-python -m code
-```
+A python figure displaying the generated prosumer community will open. You need to close it for the simulation to start.
 
 ### Output Data
 
-**prosumer_stats.csv** contains per-prosumer, per-hour records:
-- Energy metrics: PV generation, load, battery level, imbalance
-- Financial metrics: Money balance, trading price
-- Regulatory metrics: Bonus, penalty, P2P/grid exchange counts
-- Transaction details
+The following files are generated and contain the outputs of the simulation:
 
-**blockchain_stats.csv** contains per-hour mining records:
-- All competing miners and their hash powers
-- Winner selection
-- Number of transactions mined
+- **prosumer_stats.csv** contains per-prosumer, per-hour records:
+  - Energy metrics: PV generation, load, battery level, imbalance
+  - Financial metrics: Money balance, trading price
+  - Regulatory metrics: Bonus, penalty, P2P/grid exchange counts
+  - Transaction details
 
+- **blockchain_stats.csv** contains per-hour mining records:
+  - All competing miners and their hash powers
+  - Winner selection
+  - Number of transactions mined
+
+### Plotting the results
+
+Open the jupyter notebook from your terminal (inside the code folder):
+
+```bash
+jupyter notebook result_analysis.ipynb
+```
+
+Once the browser window opens, select Cell > Run All from the top menu.
+
+Plots allowing to analyze these aspects are displayed:
+- Energy Trading Dynamics (P2P vs. Grid)
+- Market Pricing Analysis
+- Prosumer Behavioral Metrics
+- Blockchain and Mining Health
 
 ---
 
