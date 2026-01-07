@@ -108,8 +108,8 @@ def run_simulation(config):
 
         # Base market price for grid transactions and P2P bidding reference
         # Use the prediction from the PriceForecaster instance
-        current_market_price = price_forecaster.predict_next_hour(date_int, hour)
-        current_market_price = current_market_price[PRICE_TYPE]
+        current_market_price = price_forecaster.predict_next_hour(date_int, hour) 
+        current_market_price = current_market_price[PRICE_TYPE] / 1000  # Convert from €/MWh to €/kWh
         print(f"- Current Market Price (Predicted):")
         print(f"Price {PRICE_TYPE}: {current_market_price:.4f} €/kWh")
         
@@ -173,20 +173,20 @@ def run_simulation(config):
                 stats_list_prosumer.append({
                     "hour": hour,
                     "id": stats["id"],
-                    "pv_capacity": stats["pv_capacity"],
-                    "pv_generation": stats["pv_generation"],
-                    "load": stats["load"],
-                    "battery_capacity": stats["battery_capacity"],
-                    "battery_level": stats["battery_level"],
-                    "imbalance": stats["imbalance"],
-                    "money_balance": stats["money_balance"],
-                    "trading_price": stats["trading_price"],
-                    "neighbourhood": stats["neighbourhood"],
-                    "bonus": stats["bonus"],
-                    "penalty": stats["penalty"],
-                    "p2p_exchanges": stats["p2p_exchanges"],
-                    "agg_exchanges": stats["agg_exchanges"],
-                    "market_price": current_market_price,
+                    "pv_capacity": stats["pv_capacity"], #kW
+                    "pv_generation": stats["pv_generation"], #kWh
+                    "load": stats["load"], #kWh
+                    "battery_capacity": stats["battery_capacity"], #kWh
+                    "battery_level": stats["battery_level"], #kWh
+                    "imbalance": stats["imbalance"], #kWh
+                    "money_balance": stats["money_balance"], # €
+                    "trading_price": stats["trading_price"], # €/kWh
+                    "neighbourhood": stats["neighbourhood"], 
+                    "bonus": stats["bonus"], # multiplier
+                    "penalty": stats["penalty"], # multiplier
+                    "p2p_exchanges": stats["p2p_exchanges"], #count
+                    "agg_exchanges": stats["agg_exchanges"], #count
+                    "market_price": current_market_price, # €/kWh
                     "transactions": stats["transactions"]
                 })
 

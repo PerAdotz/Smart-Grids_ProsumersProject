@@ -118,13 +118,13 @@ class Prosumer:
             date (str): The current date ("YYYY-MM-DD").
             hour (int): The current hour of the day (0-23).
         """
-        self.pv_generation = self.generate_pv(date, hour)
-        self.load = self.get_load(hour)
+        self.pv_generation = self.generate_pv(date, hour) # get PV generation for the hour, in kWh
+        self.load = self.get_load(hour) # get load for the hour, in kWh
         # Calculate residual energy: Load - PV_Generation
         # POSITIVE IF DEFICIT (needs to buy), NEGATIVE IF SURPLUS (needs to sell)
         residual = self.load - self.pv_generation
 
-        # Set the imbalance to the residual after generation/consumption
+        # Set the imbalance to the residual after generation/consumption, in kWh
         self.imbalance = residual
 
         # If prosumer has a deficit of energy (needs to discharge)
@@ -193,5 +193,5 @@ class Prosumer:
             float: The predicted PV generation in kWh for that hour.
         """
         params = self.get_params()
-        generation = self.pv_model.predict_single_point(params, date, hour)
+        generation = self.pv_model.predict_single_point(params, date, hour) * 1.0 # PvModel returns kW, convert to kWh
         return generation

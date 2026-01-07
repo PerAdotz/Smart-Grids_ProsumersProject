@@ -180,7 +180,7 @@ All simulation parameters are defined in `config.json` and can be easily modifie
 "community": {
     "num_prosumers": 100,           // Total number of prosumers
     "num_neighbourhoods": 5,         // Number of active neighbourhoods
-    "pv_number_range": [0, 20],      // Min/max PV panels per prosumer
+    "pv_number_range": [0, 20],      // Min/max number of PV panels per prosumer
     "pv_capacity": 0.25,             // Capacity per panel (kW)
     "battery_capacity_range": [0, 10, 15],  // Available battery sizes (kWh)
     "pv_losses": 14,                 // System losses (%)
