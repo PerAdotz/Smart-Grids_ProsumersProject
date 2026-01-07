@@ -148,7 +148,6 @@ Every energy trade creates a `Transaction` object containing:
 - Sender and receiver IDs
 - Energy amount (kWh)
 - Price per kWh (€/kWh)
-- Transaction type (P2P, GRID_buy, GRID_sell)
 - Timestamp and simulation step
 
 #### **Proof-of-Work Mining**
