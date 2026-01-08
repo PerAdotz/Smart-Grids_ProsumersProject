@@ -3,6 +3,7 @@
 <!-- University Logo Space -->
 <div align="center">
   <img src="polito_logo_2021_blu.jpg" alt="University Logo" width="200"/>
+  <img src="system_architecture.png" alt="University Logo" width="400"/>
 </div>
 
 ---
@@ -261,19 +262,19 @@ git clone https://github.com/PerAdotz/Smart-Grids_ProsumersProject.git
 
 Open a terminal and move inside the cloned folder.
 
-Create and activate a virtual enviroment
+Create and activate a virtual enviroment:
 
 ```bash
-#Windows
+# Windows
 py -3.11 -m venv venv
 venv\Scripts\activate.bat
 
-#macOS/Linux
+# macOS/Linux
 python3.11 -m venv venv
 source venv/bin/activate
 ```
 
-Update pip
+Update pip:
 
 ```bash
 pip install --upgrade pip
@@ -285,7 +286,7 @@ Install the required Python packages:
 pip install -r requirements.txt
 ```
 
-**Windows Note**: If you encounter errors related to long file paths, enable Windows Long Path support
+**Windows Note**: If you encounter errors related to long file paths, enable Windows Long Path support.
 
 ### Execution
 
