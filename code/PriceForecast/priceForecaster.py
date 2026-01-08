@@ -265,7 +265,7 @@ class PriceForecaster:
         XGRE: RMSE=9.424, R2=0.925
 
         === Overall LightGBM model performance ===
-        Global RMSE: 14.861
+        Global RMSE: 14.861 €/MWh
         Global R2:   0.929
         """
 
@@ -294,9 +294,6 @@ class PriceForecaster:
         targets = self.target_columns
 
         # Apply lagging features
-        # for col in targets:
-        #     for i in range(1, lb + 1):
-        #         df[f"{col}_t-{i}"] = df[col].shift(i)
         lag_data = {
             f"{col}_t-{i}": df[col].shift(i)
             for col in targets
@@ -686,6 +683,8 @@ class PriceForecaster:
         plt.show()
 
 if __name__ == "__main__":
+    training = False # Set to False to skip training and only predict
+
     # Get the directory of the current file (PriceForecast)
     CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -718,11 +717,16 @@ if __name__ == "__main__":
     forecaster = PriceForecaster(file_paths, lookback=lookback)
     
     # Train Multi-Output Model
-    g_rmse, g_r2 = forecaster.train_multi_output_model()
+    if training:
+        g_rmse, g_r2 = forecaster.train_multi_output_model()
+        
+        print("\n---------------------------------------------------------")
+        print(f"Global metrics: RMSE={g_rmse:.3f}, R2={g_r2:.3f}")
+        print("---------------------------------------------------------")
     
-    print("\n---------------------------------------------------------")
-    print(f"Global metrics: RMSE={g_rmse:.3f}, R2={g_r2:.3f}")
-    print("---------------------------------------------------------")
+    # Load pre-trained model if not training
+    else:
+        forecaster.load_model(output_model_path)
 
     # Predict NEXT-HOUR (using the latest timestamp in the dataset)
     df_all_raw = forecaster.df_all # The raw clean data
@@ -751,6 +755,10 @@ if __name__ == "__main__":
     # Plot the RMSE by zone
     print("\nPlotting the RMSE zone...")
     forecaster.plot_rmse_per_zone()
+
+    # Plot feature importance for PRICE_TYPE zone
+    print(f"\nPlotting feature importance for {PRICE_TYPE} zone...")
+    forecaster.plot_feature_importance(zone=PRICE_TYPE)
     
     # Plot for PRICE_TYPE zone
     print(f"\nDisplaying plots for {PRICE_TYPE} zone...")
