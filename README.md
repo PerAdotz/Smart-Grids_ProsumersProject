@@ -253,7 +253,7 @@ All simulation parameters are defined in `config.json` and can be easily modifie
 
 ### Prerequisites
 
-In a terminal with Python 3.12 installed, clone this repository: 
+In a terminal with Python 3.11 installed, clone this repository: 
 
 ```bash
 git clone https://github.com/PerAdotz/Smart-Grids_ProsumersProject.git
@@ -261,11 +261,31 @@ git clone https://github.com/PerAdotz/Smart-Grids_ProsumersProject.git
 
 Open a terminal and move inside the cloned folder.
 
+Create and activate a virtual enviroment
+
+```bash
+#Windows
+py -3.11 -m venv venv
+venv\Scripts\activate.bat
+
+#macOS/Linux
+python3.11 -m venv venv
+source venv/bin/activate
+```
+
+Update pip
+
+```bash
+pip install --upgrade pip
+```
+
 Install the required Python packages:
 
 ```bash
 pip install -r requirements.txt
 ```
+
+**Windows Note**: If you encounter errors related to long file paths, enable Windows Long Path support
 
 ### Execution
 
@@ -273,7 +293,7 @@ Run the main simulation from your terminal:
 
 ```bash
 cd code
-python3 __main__.py
+python __main__.py
 ```
 
 A python figure displaying the generated prosumer community will open. You need to close it for the simulation to start.
