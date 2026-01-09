@@ -2,8 +2,7 @@
 
 <!-- University Logo Space -->
 <div align="center">
-  <img src="polito_logo_2021_blu.jpg" alt="University Logo" width="200"/>
-  <img src="system_architecture.png" alt="University Logo" width="400"/>
+  <img src="polito_logo_2021_blu.jpg" alt="University Logo" width="300"/>
 </div>
 
 ---
@@ -56,6 +55,10 @@ The simulation needs to be run for at least 24 steps
 ---
 
 ##  System Architecture
+
+<div align='center'>
+<img src="system_architecture.png" alt="System Architecture"/>
+</div>
 
 ### 1. Community Structure
 
