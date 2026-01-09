@@ -1,6 +1,5 @@
 # Prosumers Community Simulator
 
-<!-- University Logo Space -->
 <div align="center">
   <img src="polito_logo_2021_blu.jpg" alt="University Logo" width="300"/>
 </div>
